@@ -55,7 +55,7 @@ document.getElementById("year").textContent = new Date().getFullYear();
 
   let enabled = false;
   const FADE_MS = 900;
-  const TARGET_VOLUME = 0.35;
+  const TARGET_VOLUME = 0.22;
 
   function fade(to, ms) {
     const from = audio.volume;
