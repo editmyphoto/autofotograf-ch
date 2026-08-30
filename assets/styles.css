@@ -1,0 +1,437 @@
+/* ==========================================================================
+   autofotograf.ch — Konzept "Pass & PS"
+   Palette, Typografie und Layout-Tokens zentral hier oben halten.
+   ========================================================================== */
+
+:root {
+  --bg: #14100d;
+  --bg-raise: #1c140c;
+  --bg-alt: #201a15;
+  --ink: #f3ede3;
+  --ink-dim: #c9baa4;
+  --ink-faint: #8a7a63;
+  --accent: #e0793c;
+  --accent-dim: #8a4d28;
+  --line: #332617;
+  --line-soft: #241f1b;
+
+  --serif: "Fraunces", Georgia, "Times New Roman", serif;
+  --sans: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --mono: "Space Mono", "SF Mono", "Courier New", monospace;
+
+  --wrap: 1180px;
+  --nav-h: 76px;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 17px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+img, svg { max-width: 100%; display: block; }
+a { color: inherit; text-decoration: none; }
+button { font: inherit; }
+
+.wrap {
+  max-width: var(--wrap);
+  margin: 0 auto;
+  padding: 0 32px;
+}
+@media (max-width: 700px) { .wrap { padding: 0 20px; } }
+
+h1, h2, h3 {
+  font-family: var(--serif);
+  font-weight: 600;
+  text-wrap: balance;
+  margin: 0;
+}
+
+p { margin: 0; }
+
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.eyebrow::before {
+  content: "";
+  width: 22px;
+  height: 1px;
+  background: var(--accent-dim);
+  display: inline-block;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 26px;
+  border: 1px solid var(--accent);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.btn:hover, .btn:focus-visible { background: var(--accent); color: #14100d; }
+.btn-solid { background: var(--accent); color: #14100d; }
+.btn-solid:hover, .btn-solid:focus-visible { background: #f0975f; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+/* ---------------------------- NAV ---------------------------- */
+.site-nav {
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: var(--nav-h);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  background: linear-gradient(to bottom, rgba(20,16,13,0.85), transparent);
+  transition: background 0.3s ease, border-color 0.3s ease;
+  border-bottom: 1px solid transparent;
+}
+.site-nav.is-solid {
+  background: rgba(20, 16, 13, 0.96);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--line-soft);
+}
+.site-nav .wrap { display: flex; align-items: center; justify-content: space-between; width: 100%; }
+.brand {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 600;
+  font-size: 1.25rem;
+  letter-spacing: 0.01em;
+}
+.brand span { color: var(--accent); }
+.nav-links { display: flex; gap: 30px; font-family: var(--mono); font-size: 12.5px; letter-spacing: 0.06em; text-transform: uppercase; }
+.nav-links a { color: var(--ink-dim); transition: color 0.2s ease; }
+.nav-links a:hover { color: var(--ink); }
+.nav-right { display: flex; align-items: center; gap: 18px; }
+.nav-toggle { display: none; }
+
+@media (max-width: 860px) {
+  .nav-links { display: none; }
+}
+
+/* ---------------------------- SOUND TOGGLE ---------------------------- */
+.sound-toggle {
+  width: 40px; height: 40px;
+  border: 1px solid var(--line);
+  background: rgba(20,16,13,0.6);
+  color: var(--ink-dim);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.sound-toggle:hover { border-color: var(--accent); color: var(--accent); }
+.sound-toggle[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.sound-toggle svg { width: 18px; height: 18px; }
+.sound-toggle .icon-on { display: none; }
+.sound-toggle[aria-pressed="true"] .icon-off { display: none; }
+.sound-toggle[aria-pressed="true"] .icon-on { display: block; }
+
+.sound-caption {
+  position: fixed;
+  right: 32px;
+  bottom: 24px;
+  z-index: 90;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  text-align: right;
+  max-width: 220px;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+.sound-caption.is-visible { opacity: 1; }
+@media (max-width: 700px) { .sound-caption { display: none; } }
+
+/* ---------------------------- HERO ---------------------------- */
+.hero {
+  position: relative;
+  min-height: 100svh;
+  display: flex;
+  align-items: flex-end;
+  padding: 140px 0 90px;
+  background:
+    linear-gradient(180deg, rgba(20,16,13,0.25) 0%, rgba(20,16,13,0.6) 65%, var(--bg) 100%),
+    url("img/autofotograf-graubuenden-porsche-passstrasse.jpg");
+  background-size: cover;
+  background-position: center 65%;
+  overflow: hidden;
+}
+.hero::after {
+  content: "";
+  position: absolute; inset: 0;
+  background-image:
+    radial-gradient(ellipse 60% 40% at 25% 85%, rgba(224,121,60,0.14), transparent 60%);
+  z-index: -1;
+}
+.hero-content { position: relative; max-width: 780px; }
+.hero-tag { color: var(--accent); }
+.hero h1 {
+  margin-top: 22px;
+  font-style: italic;
+  font-size: clamp(2.6rem, 6vw, 4.6rem);
+  line-height: 1.08;
+}
+.hero .sub {
+  margin-top: 24px;
+  max-width: 46ch;
+  color: var(--ink-dim);
+  font-size: 1.15rem;
+}
+.hero-actions { margin-top: 40px; display: flex; gap: 16px; flex-wrap: wrap; }
+
+.hero-frame-label {
+  position: absolute; top: 140px; right: 0;
+  font-family: var(--mono); font-size: 11px; color: var(--ink-faint);
+  letter-spacing: 0.06em; text-align: right; display: none;
+}
+@media (min-width: 860px) { .hero-frame-label { display: block; } }
+
+/* image placeholder utility, used across the page until real photos are dropped in */
+.img-placeholder {
+  position: relative;
+  background: linear-gradient(155deg, #241a10 0%, #3a2412 100%);
+  border: 1px solid var(--line);
+  display: flex; align-items: flex-end;
+  overflow: hidden;
+  color: var(--ink-faint);
+}
+.img-placeholder::before {
+  content: "";
+  position: absolute; inset: 0;
+  background-image: repeating-linear-gradient(45deg, rgba(255,255,255,0.025) 0 2px, transparent 2px 14px);
+}
+.img-placeholder .cap {
+  position: relative;
+  padding: 14px 16px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  background: linear-gradient(to top, rgba(20,16,13,0.85), transparent);
+  width: 100%;
+}
+
+/* ---------------------------- SECTION SHELL ---------------------------- */
+section { padding: 100px 0; border-bottom: 1px solid var(--line-soft); }
+.section-head { max-width: 640px; margin-bottom: 56px; }
+.section-head h2 { margin-top: 14px; font-size: clamp(1.9rem, 3.6vw, 2.7rem); font-style: italic; }
+.section-head .lede { margin-top: 16px; color: var(--ink-dim); }
+
+/* ---------------------------- PHILOSOPHY / INTRO ---------------------------- */
+.intro { padding-top: 90px; }
+.intro-grid { display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 60px; align-items: center; }
+@media (max-width: 860px) { .intro-grid { grid-template-columns: 1fr; } }
+.intro-quote {
+  font-family: var(--serif); font-style: italic;
+  font-size: clamp(1.4rem, 2.4vw, 1.9rem);
+  color: var(--ink);
+  border-left: 2px solid var(--accent-dim);
+  padding-left: 26px;
+}
+.intro-quote cite { display: block; margin-top: 18px; font-family: var(--mono); font-style: normal; font-size: 12px; color: var(--ink-faint); letter-spacing: 0.04em; }
+.intro-body p + p { margin-top: 16px; }
+.intro-body p { color: var(--ink-dim); }
+
+/* ---------------------------- PROCESS ---------------------------- */
+.process-list { display: grid; gap: 0; border-top: 1px solid var(--line); }
+.process-item {
+  display: grid;
+  grid-template-columns: 90px 1fr 1.3fr;
+  gap: 30px;
+  padding: 34px 0;
+  border-bottom: 1px solid var(--line);
+}
+@media (max-width: 780px) { .process-item { grid-template-columns: 50px 1fr; } .process-item .process-visual { display: none; } }
+.process-item .num { font-family: var(--mono); color: var(--accent); font-size: 14px; padding-top: 4px; }
+.process-item h3 { font-size: 1.35rem; font-style: italic; }
+.process-item .d { margin-top: 10px; color: var(--ink-dim); font-size: 0.97rem; max-width: 46ch; }
+.process-item .process-visual { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); text-align: right; align-self: start; padding-top: 6px; }
+
+/* ---------------------------- CAR GALLERIES (horizontal) ---------------------------- */
+.car-gallery { margin-top: 56px; }
+.car-gallery:first-of-type { margin-top: 8px; }
+.car-gallery-head {
+  display: flex; justify-content: space-between; align-items: flex-end;
+  margin-bottom: 20px;
+}
+.car-gallery-head h3 { font-size: clamp(1.5rem, 2.6vw, 2rem); font-style: italic; margin-top: 10px; }
+.car-gallery-nav { display: flex; gap: 8px; }
+.car-gallery-nav button {
+  width: 38px; height: 38px; border: 1px solid var(--line); background: transparent;
+  color: var(--ink-dim); font-family: var(--sans); font-size: 15px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; transition: border-color 0.2s ease, color 0.2s ease;
+}
+.car-gallery-nav button:hover, .car-gallery-nav button:focus-visible { border-color: var(--accent); color: var(--accent); }
+
+.car-gallery-track {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scroll-behavior: smooth;
+  padding: 0 max(20px, calc((100% - 1180px) / 2)) 22px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+.car-gallery-track::-webkit-scrollbar { height: 6px; }
+.car-gallery-track::-webkit-scrollbar-track { background: transparent; }
+.car-gallery-track::-webkit-scrollbar-thumb { background: var(--line); }
+
+.car-gallery-item {
+  flex: 0 0 auto;
+  height: 60vh;
+  max-height: 560px;
+  min-height: 320px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--bg-raise);
+  scroll-snap-align: start;
+}
+.car-gallery-item img { height: 100%; width: auto; display: block; transition: transform 0.6s ease; }
+.car-gallery-item:hover img { transform: scale(1.035); }
+.car-gallery-item .cap {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  padding: 12px 14px;
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.03em; color: var(--ink-dim);
+  background: linear-gradient(to top, rgba(20,16,13,0.88), transparent);
+  opacity: 0; transition: opacity 0.25s ease;
+  white-space: nowrap;
+}
+.car-gallery-item:hover .cap, .car-gallery-item:focus-within .cap { opacity: 1; }
+.car-gallery[data-mood="oldtimer"] .cap::before { content: "♪ Swing-Ambience · "; color: var(--accent); }
+.car-gallery[data-mood="modern"] .cap::before { content: "♪ Synth-Puls · "; color: var(--accent); }
+
+@media (max-width: 780px) {
+  .car-gallery-item { height: 46vh; min-height: 260px; }
+}
+
+/* ---------------------------- TESTIMONIALS ---------------------------- */
+.testimonial-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px; }
+@media (max-width: 860px) { .testimonial-grid { grid-template-columns: 1fr; } }
+.testimonial-card { border: 1px solid var(--line); background: var(--bg-raise); padding: 30px 28px; display: flex; flex-direction: column; }
+.testimonial-card .stars { color: var(--accent); letter-spacing: 3px; font-size: 0.9rem; }
+.testimonial-card blockquote { margin: 18px 0 0; font-family: var(--serif); font-style: italic; font-size: 1.08rem; line-height: 1.5; flex-grow: 1; }
+.testimonial-card footer { margin-top: 20px; font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-faint); }
+
+/* ---------------------------- GIFT BANNER ---------------------------- */
+.gift-banner {
+  border: 1px solid var(--accent-dim);
+  background:
+    linear-gradient(100deg, rgba(20,16,13,0.88) 0%, rgba(20,16,13,0.65) 45%, rgba(20,16,13,0.3) 100%),
+    url("img/autofotograf-graubuenden-alfa-romeo-giulia-ehepaar.jpg");
+  background-size: cover;
+  background-position: center 30%;
+  padding: 46px 40px;
+  display: flex; align-items: center; justify-content: space-between; gap: 30px; flex-wrap: wrap;
+}
+.gift-banner h2 { font-size: 1.8rem; font-style: italic; max-width: 20ch; }
+.gift-banner p { margin-top: 10px; color: var(--ink-dim); max-width: 50ch; }
+
+/* ---------------------------- CONTACT ---------------------------- */
+.contact-grid { display: grid; grid-template-columns: 1fr 1.1fr; gap: 60px; }
+@media (max-width: 860px) { .contact-grid { grid-template-columns: 1fr; } }
+.contact-info dl { margin-top: 30px; display: grid; gap: 20px; }
+.contact-info dt { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-faint); }
+.contact-info dd { margin: 6px 0 0; font-size: 1rem; }
+.contact-info dd a:hover { color: var(--accent); }
+.social-row { margin-top: 34px; display: flex; gap: 18px; font-family: var(--mono); font-size: 12.5px; letter-spacing: 0.05em; text-transform: uppercase; }
+.social-row a { border-bottom: 1px solid var(--line); padding-bottom: 2px; }
+.social-row a:hover { color: var(--accent); border-color: var(--accent); }
+
+form.contact-form { display: grid; gap: 20px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 560px) { .form-row { grid-template-columns: 1fr; } }
+.field { display: flex; flex-direction: column; gap: 8px; }
+.field label { font-family: var(--mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-faint); }
+.field input, .field textarea, .field select {
+  background: var(--bg-raise);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  padding: 13px 14px;
+  font-family: var(--sans);
+  font-size: 0.98rem;
+  resize: vertical;
+}
+.field input:focus, .field textarea:focus, .field select:focus { border-color: var(--accent); outline: none; }
+.field.honeypot { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+.form-status { font-family: var(--mono); font-size: 12.5px; min-height: 1.2em; }
+.form-status[data-state="ok"] { color: #8bbf8f; }
+.form-status[data-state="error"] { color: #e07070; }
+.form-note { font-size: 0.83rem; color: var(--ink-faint); }
+.form-note a { color: var(--ink-dim); border-bottom: 1px solid var(--line); }
+.form-note a:hover { color: var(--accent); border-color: var(--accent); }
+
+/* ---------------------------- FOOTER ---------------------------- */
+footer.site-footer { padding: 56px 0 40px; border-bottom: none; }
+.footer-grid { display: flex; justify-content: space-between; align-items: flex-start; gap: 30px; flex-wrap: wrap; }
+.footer-nav { display: flex; gap: 24px; flex-wrap: wrap; font-family: var(--mono); font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-faint); }
+.footer-nav a:hover { color: var(--accent); }
+.footer-bottom {
+  margin-top: 50px; padding-top: 24px; border-top: 1px solid var(--line-soft);
+  display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+  font-family: var(--mono); font-size: 11px; color: var(--ink-faint);
+}
+
+/* ---------------------------- REVEAL ---------------------------- */
+@media (prefers-reduced-motion: no-preference) {
+  .reveal { opacity: 0; transform: translateY(18px); transition: opacity 0.7s ease, transform 0.7s ease; }
+  .reveal.is-visible { opacity: 1; transform: none; }
+}
+
+/* ---------------------------- SKIP LINK ---------------------------- */
+.skip-link {
+  position: absolute; left: -9999px; top: 0; z-index: 200;
+  background: var(--accent); color: #14100d; padding: 12px 18px; font-family: var(--mono); font-size: 13px;
+}
+.skip-link:focus { left: 16px; top: 16px; }
+
+/* ---------------------------- LEGAL PAGES (Impressum/Datenschutz) ---------------------------- */
+.legal-header { padding: 160px 0 40px; border-bottom: 1px solid var(--line-soft); }
+.legal-header .back-link {
+  font-family: var(--mono); font-size: 12.5px; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--ink-faint); display: inline-flex; align-items: center; gap: 8px;
+}
+.legal-header .back-link:hover { color: var(--accent); }
+.legal-header h1 { margin-top: 22px; font-size: clamp(2rem, 4vw, 2.8rem); font-style: italic; }
+.legal-header .updated { margin-top: 14px; font-family: var(--mono); font-size: 12px; color: var(--ink-faint); }
+
+.legal-body { padding: 64px 0 100px; max-width: 760px; }
+.legal-body h2 { font-size: 1.3rem; font-style: italic; margin-top: 44px; }
+.legal-body h2:first-child { margin-top: 0; }
+.legal-body p { color: var(--ink-dim); margin-top: 14px; }
+.legal-body p:first-of-type { margin-top: 0; }
+.legal-body ul { color: var(--ink-dim); margin-top: 14px; padding-left: 20px; }
+.legal-body li { margin-top: 8px; }
+.legal-body a { color: var(--accent); border-bottom: 1px solid var(--accent-dim); }
+.legal-body a:hover { color: #f0975f; }
+.legal-body .addr { font-style: normal; color: var(--ink); margin-top: 18px; line-height: 1.8; }
+.legal-body .note {
+  margin-top: 40px; padding: 16px 18px; background: var(--bg-raise); border: 1px solid var(--line);
+  font-size: 0.9rem; color: var(--ink-faint);
+}

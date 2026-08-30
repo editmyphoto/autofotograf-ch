@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="de-CH">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Seite nicht gefunden | autofotograf.ch</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="assets/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;0,600;1,500;1,600&family=Manrope:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/styles.css">
+  <style>
+    .error-page {
+      min-height: 100svh; display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
+      padding: 140px 0 100px;
+      background:
+        linear-gradient(180deg, rgba(20,16,13,0.35) 0%, rgba(20,16,13,0.75) 70%, var(--bg) 100%),
+        url("assets/img/gallery-morgan-kurve-nebel.jpg");
+      background-size: cover; background-position: center 35%;
+    }
+    .error-page .eyebrow { color: var(--accent); }
+    .error-page h1 { margin-top: 20px; font-size: clamp(2.4rem, 6vw, 4rem); font-style: italic; }
+    .error-page p { margin-top: 20px; max-width: 46ch; color: var(--ink-dim); font-size: 1.1rem; }
+    .error-page .actions { margin-top: 36px; display: flex; gap: 16px; flex-wrap: wrap; }
+  </style>
+</head>
+<body>
+  <nav class="site-nav is-solid">
+    <div class="wrap">
+      <a class="brand" href="index.html">auto<span>fotograf</span>.ch</a>
+      <div class="nav-links">
+        <a href="index.html#galerie">Galerie</a>
+        <a href="index.html#ablauf">Ablauf</a>
+        <a href="index.html#bewertungen">Bewertungen</a>
+        <a href="index.html#kontakt">Kontakt</a>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <header class="error-page">
+      <div class="wrap">
+        <div class="eyebrow">404 — Falsche Abzweigung</div>
+        <h1>Diese Kurve gibt's nicht.</h1>
+        <p>Die Seite, die du suchst, ist entweder umgezogen oder nie hier gewesen. Zurück auf die Hauptstrasse?</p>
+        <div class="actions">
+          <a class="btn btn-solid" href="index.html">Zur Startseite</a>
+          <a class="btn" href="index.html#galerie">Zur Galerie</a>
+        </div>
+      </div>
+    </header>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="footer-grid">
+        <a class="brand" href="index.html">auto<span>fotograf</span>.ch</a>
+        <nav class="footer-nav" aria-label="Footer-Navigation">
+          <a href="index.html#galerie">Galerie</a>
+          <a href="index.html#ablauf">Ablauf</a>
+          <a href="index.html#bewertungen">Bewertungen</a>
+          <a href="index.html#kontakt">Kontakt</a>
+          <a href="impressum.html">Impressum</a>
+          <a href="datenschutz.html">Datenschutz</a>
+        </nav>
+      </div>
+      <div class="footer-bottom">
+        <div>© <span id="year"></span> autofotograf.ch — Rinaldo Krättli, Chur</div>
+        <div>UID CHE-278.352.667</div>
+      </div>
+    </div>
+  </footer>
+
+  <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>
