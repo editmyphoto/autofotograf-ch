@@ -81,6 +81,109 @@ document.getElementById("year").textContent = new Date().getFullYear();
   });
 })();
 
+/* ---------------------------------------------------------------------------
+   UI-SOUNDEFFEKTE
+   ---------------------------------------------------------------------------
+   Ein kurzer Swoosh beim Durchscrollen der Auto-Galerien, ein knackiges
+   Klickgeräusch auf Buttons/Links — beides synthetisch per Web Audio API
+   erzeugt (kein Sample aus dem Song, kein Lizenzthema). Läuft nur, wenn
+   der Sound-Toggle aktiv ist.
+   ---------------------------------------------------------------------------- */
+(() => {
+  const toggle = document.getElementById("soundToggle");
+  if (!toggle) return;
+
+  let ctx = null;
+  function getCtx() {
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (ctx.state === "suspended") ctx.resume();
+    return ctx;
+  }
+
+  function isEnabled() {
+    return toggle.getAttribute("aria-pressed") === "true";
+  }
+
+  function noiseBuffer(ac, seconds, fadeOut) {
+    const size = Math.max(1, Math.floor(ac.sampleRate * seconds));
+    const buffer = ac.createBuffer(1, size, ac.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < size; i++) {
+      const env = fadeOut ? 1 - i / size : 1;
+      data[i] = (Math.random() * 2 - 1) * env;
+    }
+    return buffer;
+  }
+
+  function playSwoosh() {
+    if (!isEnabled()) return;
+    const ac = getCtx();
+    const dur = 0.35;
+    const noise = ac.createBufferSource();
+    noise.buffer = noiseBuffer(ac, dur, false);
+
+    const filter = ac.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.Q.value = 0.7;
+    filter.frequency.setValueAtTime(350, ac.currentTime);
+    filter.frequency.exponentialRampToValueAtTime(2600, ac.currentTime + dur * 0.55);
+    filter.frequency.exponentialRampToValueAtTime(280, ac.currentTime + dur);
+
+    const gain = ac.createGain();
+    gain.gain.setValueAtTime(0, ac.currentTime);
+    gain.gain.linearRampToValueAtTime(0.22, ac.currentTime + 0.04);
+    gain.gain.linearRampToValueAtTime(0, ac.currentTime + dur);
+
+    noise.connect(filter).connect(gain).connect(ac.destination);
+    noise.start();
+    noise.stop(ac.currentTime + dur);
+  }
+
+  function playClick() {
+    if (!isEnabled()) return;
+    const ac = getCtx();
+    const dur = 0.06;
+    const noise = ac.createBufferSource();
+    noise.buffer = noiseBuffer(ac, dur, true);
+
+    const filter = ac.createBiquadFilter();
+    filter.type = "highpass";
+    filter.frequency.value = 1800;
+
+    const gain = ac.createGain();
+    gain.gain.setValueAtTime(0.28, ac.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + dur);
+
+    noise.connect(filter).connect(gain).connect(ac.destination);
+    noise.start();
+    noise.stop(ac.currentTime + dur);
+  }
+
+  // Swoosh beim Durchscrollen einer Auto-Galerie — einmal pro Scroll-Geste,
+  // nicht bei jedem Scroll-Event (sonst nervt es sofort)
+  document.querySelectorAll(".car-gallery-track").forEach((track) => {
+    let settleTimer = null;
+    let isScrolling = false;
+    track.addEventListener(
+      "scroll",
+      () => {
+        if (!isScrolling) {
+          isScrolling = true;
+          playSwoosh();
+        }
+        clearTimeout(settleTimer);
+        settleTimer = setTimeout(() => { isScrolling = false; }, 250);
+      },
+      { passive: true }
+    );
+  });
+
+  // Klickgeräusch auf Buttons, Pfeilen und Hauptnavigation
+  document.querySelectorAll(".btn, .car-gallery-nav button, .nav-links a").forEach((el) => {
+    el.addEventListener("click", playClick);
+  });
+})();
+
 /* ---------------------------- AUTO-GALERIEN: Pfeil-Scroll ---------------------------- */
 (() => {
   document.querySelectorAll(".car-gallery").forEach((gallery) => {
