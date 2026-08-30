@@ -82,18 +82,18 @@ namentlich inkl. Hinweis auf Datenübermittlung in die USA.
 Falls du das Formspree-Konto wechselst oder ein zweites Formular brauchst:
 in `assets/script.js` die `ENDPOINT`-Konstante anpassen.
 
-### 3. Sound-Dateien (optional, siehe Idee unten)
-In `assets/script.js` ganz oben im Abschnitt „SOUND-ARCHITEKTUR" liegt das
-`TRACKS`-Objekt mit drei Slots (`hero`, `oldtimer`, `modern`). Die Logik für
-Crossfade, Master-Toggle und Umschalten je nach Galerie-Bild ist fertig —
-es fehlen nur lizenzierte Audiodateien unter `assets/audio/`. Quellen mit
-sauberer Lizenz für kommerzielle Websites: Artlist, Epidemic Sound,
-Musicbed, oder eigene Aufnahmen (z. B. echter Standgas-Sound vom Shooting
-selbst — würde authentisch zur Marke passen).
+### 3. Sound — aktiv ✓
+Ein Song für die ganze Seite: `assets/audio/wanted.mp3` ("Bobby Quick —
+Wanted", Instrumental, lizenziert über Artlist.io). Ein Klick auf das
+Lautsprecher-Icon in der Nav blendet ihn sanft ein/aus (Fade, kein
+abruptes Ein/Aus), läuft dann in Schlaufe. Startet nie von selbst — Browser
+blockieren Autoplay mit Ton ohnehin, und ein leiser Startzustand mit
+sichtbarem Regler ist auch einfach die höflichere Lösung.
 
-Wichtig: Ton startet nie von selbst. Browser blockieren Autoplay mit Ton
-ohnehin, und ein leiser Startzustand mit sichtbarem Regler ist auch einfach
-die höflichere Lösung.
+Song wechseln: Datei in `assets/audio/` austauschen und den Dateinamen in
+`assets/script.js` (Abschnitt „SOUND", `new Audio(...)`) anpassen. Bitte
+nur lizenzierte Quellen verwenden (Artlist, Epidemic Sound, Musicbed o. Ä.),
+keine YouTube-Rips.
 
 ### 4. Impressum & Datenschutz — Entwürfe stehen, noch prüfen lassen
 `impressum.html` und `datenschutz.html` sind fertig verlinkt (Footer +
