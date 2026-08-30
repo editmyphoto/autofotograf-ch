@@ -177,9 +177,9 @@ p { margin: 0; }
   padding: 140px 0 90px;
   background:
     linear-gradient(180deg, rgba(20,16,13,0.25) 0%, rgba(20,16,13,0.6) 65%, var(--bg) 100%),
-    url("img/autofotograf-graubuenden-porsche-passstrasse.jpg");
+    url("img/autofotograf-graubuenden-porsche-blick-tal.jpg");
   background-size: cover;
-  background-position: center 65%;
+  background-position: center 88%;
   overflow: hidden;
 }
 .hero::after {

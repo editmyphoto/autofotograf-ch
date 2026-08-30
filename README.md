@@ -108,12 +108,24 @@ Google Fonts). Bevor die Seite live geht:
   von einer fachkundigen Person gegenprüfen lassen, besonders wenn sich
   Angebot, Hosting oder Rechtsform ändern.
 
-### 5. Domain & Deployment
-- `index.html`, `robots.txt`, `sitemap.xml` verweisen aktuell auf
-  `https://www.autofotograf.ch/`. Falls ohne „www" gehostet wird, diese
-  URLs anpassen (Suche & Ersetze reicht).
+### 5. Domain & Deployment — live ✓
+- Code liegt auf GitHub: `github.com/editmyphoto/autofotograf-ch`
+- Deployed auf Vercel (Projekt `autofotograf-ch`, Team `editmyphoto`),
+  Auto-Deploy bei jedem Push auf `main`
+- **Live unter https://autofotograf.ch** (redirected automatisch auf
+  `https://www.autofotograf.ch`, SSL aktiv)
+- Fallback-URL: https://autofotograf-ch.vercel.app
+- DNS liegt bei Hostpoint, DNS-Zone von `autofotograf.ch`:
+  - `A @ → 76.76.21.21` (Vercel)
+  - `CNAME www → cname.vercel-dns.com` (Vercel)
+  - Alle bestehenden Mail-Records (MX, SPF, DKIM, DMARC) unverändert
+    gelassen — E-Mail läuft weiter über Hostpoint
+- Vercel zeigt evtl. noch „DNS Change Recommended" (gelb, optional) —
+  das ist nur ein Performance-Vorschlag, kein Fehler; Seite funktioniert
+  bereits vollständig
 - Nach dem Go-Live: Seite bei der Google Search Console anmelden und
-  `sitemap.xml` einreichen.
+  `sitemap.xml` einreichen (`index.html`, `robots.txt`, `sitemap.xml`
+  verweisen bereits korrekt auf `https://www.autofotograf.ch/`)
 
 ## Preise / Pakete
 
