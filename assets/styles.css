@@ -231,7 +231,7 @@ section { padding: 100px 0; border-bottom: 1px solid var(--line-soft); }
 
 /* ---------------------------- PHILOSOPHY / INTRO ---------------------------- */
 .intro { padding-top: 100px; }
-.intro-grid { display: grid; grid-template-columns: 0.85fr 1.15fr; gap: 64px; align-items: start; }
+.intro-grid { display: grid; grid-template-columns: 0.85fr 1.15fr; gap: 64px; align-items: stretch; }
 @media (max-width: 860px) { .intro-grid { grid-template-columns: 1fr; gap: 36px; } }
 
 .intro-portrait {
@@ -239,8 +239,11 @@ section { padding: 100px 0; border-bottom: 1px solid var(--line-soft); }
   overflow: hidden;
   border: 1px solid var(--line);
 }
-.intro-portrait img { width: 100%; height: 100%; object-fit: cover; }
+.intro-portrait img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 22%; }
 @media (max-width: 860px) { .intro-portrait { max-width: 360px; margin: 0 auto; } }
+/* Above the mobile breakpoint the portrait drops its fixed ratio and
+   stretches to match the text column's natural height instead. */
+@media (min-width: 861px) { .intro-portrait { aspect-ratio: unset; height: 100%; } }
 
 .intro-copy { display: flex; flex-direction: column; gap: 24px; padding-top: 6px; }
 .intro-copy h2 { font-size: clamp(1.8rem, 3.2vw, 2.4rem); font-style: italic; }
