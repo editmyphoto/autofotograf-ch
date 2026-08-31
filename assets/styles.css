@@ -374,10 +374,15 @@ section { padding: 100px 0; border-bottom: 1px solid var(--line-soft); }
 /* ---------------------------- TESTIMONIALS ---------------------------- */
 .testimonial-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px; }
 @media (max-width: 860px) { .testimonial-grid { grid-template-columns: 1fr; } }
-.testimonial-card { border: 1px solid var(--line); background: var(--bg-raise); padding: 30px 28px; display: flex; flex-direction: column; }
-.testimonial-card .stars { color: var(--accent); letter-spacing: 3px; font-size: 0.9rem; }
+.testimonial-card { border: 1px solid var(--line); background: var(--bg-raise); padding: 30px 28px; display: flex; flex-direction: column; transition: border-color 0.2s ease; }
+.testimonial-card:hover { border-color: var(--accent-dim); }
+.testimonial-top { display: flex; align-items: center; justify-content: space-between; }
+.testimonial-card .stars { color: #FBBC05; letter-spacing: 3px; font-size: 0.95rem; }
 .testimonial-card blockquote { margin: 18px 0 0; font-family: var(--serif); font-style: italic; font-size: 1.08rem; line-height: 1.5; flex-grow: 1; }
 .testimonial-card footer { margin-top: 20px; font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-faint); }
+.google-g { width: 20px; height: 20px; flex-shrink: 0; }
+.google-cta-row { margin-top: 40px; display: flex; justify-content: center; }
+.google-cta { display: inline-flex; align-items: center; gap: 10px; }
 
 /* ---------------------------- GIFT BANNER ---------------------------- */
 .gift-banner {
