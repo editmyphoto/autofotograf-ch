@@ -177,6 +177,7 @@ p { margin: 0; }
   padding: 56px 0 90px;
 }
 .hero-tag { color: var(--accent); }
+.hero-tag::before { content: none; }
 .hero h1 {
   margin-top: 22px;
   font-style: italic;
