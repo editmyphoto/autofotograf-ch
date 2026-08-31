@@ -245,6 +245,13 @@ section { padding: 100px 0; border-bottom: 1px solid var(--line-soft); }
   padding-left: 26px;
 }
 .intro-quote cite { display: block; margin-top: 18px; font-family: var(--mono); font-style: normal; font-size: 12px; color: var(--ink-faint); letter-spacing: 0.04em; }
+.intro-portrait {
+  aspect-ratio: 1085 / 1356;
+  overflow: hidden;
+  border: 1px solid var(--line);
+}
+.intro-portrait img { width: 100%; height: 100%; object-fit: cover; }
+@media (max-width: 860px) { .intro-portrait { max-width: 360px; margin: 0 auto; } }
 
 /* ---------------------------- PROCESS ---------------------------- */
 .process-list { display: grid; gap: 0; border-top: 1px solid var(--line); }
