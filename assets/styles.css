@@ -230,21 +230,10 @@ section { padding: 100px 0; border-bottom: 1px solid var(--line-soft); }
 .section-head .lede { margin-top: 16px; color: var(--ink-dim); }
 
 /* ---------------------------- PHILOSOPHY / INTRO ---------------------------- */
-.intro { padding-top: 90px; }
-.intro-grid { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 60px; align-items: center; }
-.intro-grid > *:only-child { grid-column: 1 / -1; max-width: 640px; }
-@media (max-width: 860px) { .intro-grid { grid-template-columns: 1fr; } }
-.intro-body-full { max-width: 780px; margin-top: 56px; }
-.intro-body-full p + p { margin-top: 16px; }
-.intro-body-full p { color: var(--ink-dim); }
-.intro-quote {
-  font-family: var(--serif); font-style: italic;
-  font-size: clamp(1.4rem, 2.4vw, 1.9rem);
-  color: var(--ink);
-  border-left: 2px solid var(--accent-dim);
-  padding-left: 26px;
-}
-.intro-quote cite { display: block; margin-top: 18px; font-family: var(--mono); font-style: normal; font-size: 12px; color: var(--ink-faint); letter-spacing: 0.04em; }
+.intro { padding-top: 100px; }
+.intro-grid { display: grid; grid-template-columns: 0.85fr 1.15fr; gap: 64px; align-items: start; }
+@media (max-width: 860px) { .intro-grid { grid-template-columns: 1fr; gap: 36px; } }
+
 .intro-portrait {
   aspect-ratio: 1085 / 1356;
   overflow: hidden;
@@ -252,6 +241,22 @@ section { padding: 100px 0; border-bottom: 1px solid var(--line-soft); }
 }
 .intro-portrait img { width: 100%; height: 100%; object-fit: cover; }
 @media (max-width: 860px) { .intro-portrait { max-width: 360px; margin: 0 auto; } }
+
+.intro-copy { display: flex; flex-direction: column; gap: 24px; padding-top: 6px; }
+.intro-copy h2 { font-size: clamp(1.8rem, 3.2vw, 2.4rem); font-style: italic; }
+
+.intro-quote {
+  font-family: var(--serif); font-style: italic;
+  font-size: 1.2rem;
+  line-height: 1.5;
+  color: var(--ink);
+  border-left: 2px solid var(--accent-dim);
+  padding-left: 22px;
+}
+.intro-quote cite { display: block; margin-top: 16px; font-family: var(--mono); font-style: normal; font-size: 12px; color: var(--ink-faint); letter-spacing: 0.04em; }
+
+.intro-text { display: flex; flex-direction: column; gap: 14px; }
+.intro-text p { color: var(--ink-dim); }
 
 /* ---------------------------- PROCESS ---------------------------- */
 .process-list { display: grid; gap: 0; border-top: 1px solid var(--line); }
