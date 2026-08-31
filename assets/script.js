@@ -53,6 +53,11 @@ document.getElementById("year").textContent = new Date().getFullYear();
   audio.volume = 0;
   audio.preload = "none";
 
+  // Kurze Trailer-Ansage, läuft einmalig vor dem allerersten Fade-in des Songs.
+  const voice = new Audio("assets/audio/intro-voice.m4a");
+  voice.preload = "none";
+  let voicePlayed = false;
+
   let enabled = false;
   const FADE_MS = 900;
   const TARGET_VOLUME = 0.22;
@@ -77,7 +82,24 @@ document.getElementById("year").textContent = new Date().getFullYear();
   toggle.addEventListener("click", () => {
     enabled = !enabled;
     toggle.setAttribute("aria-pressed", String(enabled));
-    fade(enabled ? TARGET_VOLUME : 0, FADE_MS);
+
+    if (!enabled) {
+      voice.pause();
+      fade(0, FADE_MS);
+      return;
+    }
+
+    if (!voicePlayed) {
+      voicePlayed = true;
+      voice.currentTime = 0;
+      voice.play().catch(() => {
+        /* Browser blockt Autoplay — direkt zum Song übergehen */
+        fade(TARGET_VOLUME, FADE_MS);
+      });
+      voice.addEventListener("ended", () => fade(TARGET_VOLUME, FADE_MS), { once: true });
+    } else {
+      fade(TARGET_VOLUME, FADE_MS);
+    }
   });
 })();
 
