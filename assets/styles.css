@@ -476,7 +476,3 @@ footer.site-footer { padding: 56px 0 40px; border-bottom: none; }
 .legal-body a { color: var(--accent); border-bottom: 1px solid var(--accent-dim); }
 .legal-body a:hover { color: #f0975f; }
 .legal-body .addr { font-style: normal; color: var(--ink); margin-top: 18px; line-height: 1.8; }
-.legal-body .note {
-  margin-top: 40px; padding: 16px 18px; background: var(--bg-raise); border: 1px solid var(--line);
-  font-size: 0.9rem; color: var(--ink-faint);
-}
