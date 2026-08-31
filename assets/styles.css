@@ -153,18 +153,23 @@ p { margin: 0; }
 .hero { position: relative; }
 .hero-media {
   position: relative;
-  height: 88svh;
-  min-height: 480px;
-  max-height: 820px;
-  background: url("img/autofotograf-graubuenden-porsche-blick-tal.jpg");
-  background-size: cover;
-  background-position: center 78%;
+  width: 100%;
   overflow: hidden;
+}
+.hero-media img {
+  width: 100%;
+  height: auto;
+  display: block;
 }
 .hero-media::after {
   content: "";
   position: absolute; inset: 0;
-  background: linear-gradient(180deg, rgba(20,16,13,0.05) 0%, rgba(20,16,13,0.05) 70%, var(--bg) 100%);
+  background: linear-gradient(180deg, rgba(20,16,13,0) 0%, rgba(20,16,13,0) 78%, var(--bg) 100%);
+}
+
+@media (max-width: 700px) {
+  .hero-media { height: 62svh; min-height: 380px; }
+  .hero-media img { height: 100%; object-fit: cover; object-position: center 68%; }
 }
 .hero-copy {
   position: relative;
@@ -192,7 +197,6 @@ p { margin: 0; }
   letter-spacing: 0.06em; text-align: right; display: none;
 }
 @media (min-width: 860px) { .hero-frame-label { display: block; } }
-@media (max-width: 700px) { .hero-media { height: 62svh; min-height: 380px; } }
 
 /* image placeholder utility, used across the page until real photos are dropped in */
 .img-placeholder {
