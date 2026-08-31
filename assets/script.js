@@ -61,6 +61,8 @@ document.getElementById("year").textContent = new Date().getFullYear();
   let enabled = false;
   const FADE_MS = 900;
   const TARGET_VOLUME = 0.22;
+  const VOICE_MUSIC_DELAY_MS = 700; // Song setzt kurz nach Sprechbeginn ein
+  const VOICE_FADE_MS = 3200; // ...und schwillt langsam an, statt reinzuplatzen
 
   function fade(to, ms) {
     const from = audio.volume;
@@ -96,7 +98,10 @@ document.getElementById("year").textContent = new Date().getFullYear();
         /* Browser blockt Autoplay — direkt zum Song übergehen */
         fade(TARGET_VOLUME, FADE_MS);
       });
-      voice.addEventListener("ended", () => fade(TARGET_VOLUME, FADE_MS), { once: true });
+      // Song schwillt schon unter der Ansage sanft an, statt erst danach zu starten
+      setTimeout(() => {
+        if (enabled) fade(TARGET_VOLUME, VOICE_FADE_MS);
+      }, VOICE_MUSIC_DELAY_MS);
     } else {
       fade(TARGET_VOLUME, FADE_MS);
     }
