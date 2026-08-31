@@ -270,18 +270,39 @@ section { padding: 100px 0; border-bottom: 1px solid var(--line-soft); }
 .car-gallery-nav button:hover, .car-gallery-nav button:focus-visible { border-color: var(--accent); color: var(--accent); }
 
 .car-gallery-track {
+  position: relative;
   display: flex;
-  gap: 14px;
+  align-items: center;
+  gap: 16px;
   overflow-x: auto;
   scroll-snap-type: x proximity;
   scroll-behavior: smooth;
-  padding: 0 max(20px, calc((100% - 1180px) / 2)) 22px;
+  padding: 30px max(20px, calc((100% - 1180px) / 2)) 30px;
   scrollbar-width: thin;
   scrollbar-color: var(--line) transparent;
+  background: #070502;
+  counter-reset: frame;
 }
 .car-gallery-track::-webkit-scrollbar { height: 6px; }
 .car-gallery-track::-webkit-scrollbar-track { background: transparent; }
 .car-gallery-track::-webkit-scrollbar-thumb { background: var(--line); }
+
+/* Perforation strips, top & bottom — like a 35mm film reel. Holes are cut
+   to the page background colour, not white, so they read as gaps in the
+   film rather than lit-up squares. */
+.car-gallery-track::before,
+.car-gallery-track::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0;
+  height: 30px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='34' height='30'><rect x='7' y='6' width='20' height='18' rx='4' fill='%2314100d'/></svg>");
+  background-repeat: repeat-x;
+  background-size: 34px 30px;
+  pointer-events: none;
+}
+.car-gallery-track::before { top: 0; }
+.car-gallery-track::after { bottom: 0; }
 
 .car-gallery-item {
   flex: 0 0 auto;
@@ -290,12 +311,24 @@ section { padding: 100px 0; border-bottom: 1px solid var(--line-soft); }
   min-height: 320px;
   position: relative;
   overflow: hidden;
-  border: 1px solid var(--line);
   background: var(--bg-raise);
   scroll-snap-align: start;
+  counter-increment: frame;
 }
 .car-gallery-item img { height: 100%; width: auto; display: block; transition: transform 0.6s ease; }
 .car-gallery-item:hover img { transform: scale(1.035); }
+.car-gallery-item::before {
+  content: counter(frame, decimal-leading-zero) "A";
+  position: absolute;
+  top: 9px; left: 9px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: rgba(243, 237, 227, 0.65);
+  background: rgba(5, 3, 2, 0.55);
+  padding: 2px 6px;
+  pointer-events: none;
+}
 .car-gallery-item .cap {
   position: absolute; left: 0; right: 0; bottom: 0;
   padding: 12px 14px;
@@ -308,6 +341,11 @@ section { padding: 100px 0; border-bottom: 1px solid var(--line-soft); }
 
 @media (max-width: 780px) {
   .car-gallery-item { height: 46vh; min-height: 260px; }
+  .car-gallery-track { padding-top: 22px; padding-bottom: 22px; gap: 10px; }
+  .car-gallery-track::before, .car-gallery-track::after {
+    height: 22px;
+    background-size: 26px 22px;
+  }
 }
 
 /* ---------------------------- TESTIMONIALS ---------------------------- */
