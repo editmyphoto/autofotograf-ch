@@ -25,9 +25,8 @@
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="assets/favicon-32.png" sizes="32x32" type="image/png">
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;0,600;1,500;1,600&family=Manrope:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="preload" href="assets/fonts/manrope-normal-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="assets/fonts.css">
   <link rel="stylesheet" href="assets/styles.css">
 
   <!-- Structured data: local business + reviews, so search engines connect the dots without guesswork -->
@@ -523,8 +522,8 @@
       <div class="wrap contact-grid">
         <div class="reveal">
           <div class="eyebrow">Kontakt</div>
-          <h2 id="kontakt-heading" style="margin-top:14px; font-size:clamp(1.9rem,3.6vw,2.7rem); font-style:italic;">Erzähl mir von deinem Auto.</h2>
-          <dl class="contact-info" style="margin-top:24px;">
+          <h2 id="kontakt-heading">Erzähl mir von deinem Auto.</h2>
+          <dl class="contact-info">
             <div><dt>Telefon</dt><dd><a href="tel:+41797693412">+41 79 769 34 12</a></dd></div>
             <div><dt>E-Mail</dt><dd><a href="mailto:info@rinaldo-kraettli.ch">info@rinaldo-kraettli.ch</a></dd></div>
             <div><dt>Standort</dt><dd>Giacomettistrasse 102, 7000 Chur</dd></div>
@@ -539,17 +538,17 @@
           <div class="form-row">
             <div class="field">
               <label for="name">Name</label>
-              <input type="text" id="name" name="name" autocomplete="name" required>
+              <input type="text" id="name" name="name" autocomplete="name" maxlength="100" required>
             </div>
             <div class="field">
               <label for="email">E-Mail</label>
-              <input type="email" id="email" name="email" autocomplete="email" required>
+              <input type="email" id="email" name="email" autocomplete="email" maxlength="254" required>
             </div>
           </div>
           <div class="form-row">
             <div class="field">
               <label for="fahrzeug">Auto (Marke &amp; Modell)</label>
-              <input type="text" id="fahrzeug" name="fahrzeug" placeholder="z. B. Alfa Romeo Giulia">
+              <input type="text" id="fahrzeug" name="fahrzeug" maxlength="100" placeholder="z. B. Alfa Romeo Giulia">
             </div>
             <div class="field">
               <label for="anlass">Anlass</label>
@@ -562,12 +561,14 @@
           </div>
           <div class="field">
             <label for="nachricht">Nachricht</label>
-            <textarea id="nachricht" name="nachricht" rows="5" required placeholder="Erzähl mir kurz von deinem Auto und deiner Wunsch-Location."></textarea>
+            <textarea id="nachricht" name="nachricht" rows="5" maxlength="5000" required placeholder="Erzähl mir kurz von deinem Auto und deiner Wunsch-Location."></textarea>
           </div>
-          <!-- Honeypot gegen simple Spam-Bots — für Menschen unsichtbar -->
+          <!-- Honeypot gegen Spam-Bots — für Menschen unsichtbar. Feldname "_gotcha" wird von Formspree
+               serverseitig geprüft: ist es ausgefüllt, verwirft Formspree die Nachricht, auch wenn ein Bot
+               direkt an den Endpoint sendet und dieses Script gar nicht ausführt. -->
           <div class="field honeypot" aria-hidden="true">
             <label for="firma">Firma</label>
-            <input type="text" id="firma" name="firma" tabindex="-1" autocomplete="off">
+            <input type="text" id="firma" name="_gotcha" tabindex="-1" autocomplete="off">
           </div>
           <button class="btn btn-solid" type="submit">Anfrage senden</button>
           <p class="form-status" id="formStatus" role="status" aria-live="polite"></p>

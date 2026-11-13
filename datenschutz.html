@@ -10,9 +10,8 @@
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="assets/favicon-32.png" sizes="32x32" type="image/png">
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;0,600;1,500;1,600&family=Manrope:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="preload" href="assets/fonts/manrope-normal-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="assets/fonts.css">
   <link rel="stylesheet" href="assets/styles.css">
 </head>
 <body>
@@ -35,13 +34,13 @@
       <div class="wrap">
         <a class="back-link" href="index.html">← Zurück zur Startseite</a>
         <h1>Datenschutzerklärung</h1>
-        <p class="updated">Stand: 30. August 2026</p>
+        <p class="updated">Stand: 13. November 2026</p>
       </div>
     </header>
 
     <div class="wrap">
       <div class="legal-body">
-        <p>Diese Datenschutzerklärung informiert dich darüber, welche Personendaten auf dieser Website bearbeitet werden, zu welchem Zweck, und welche Rechte dir gemäss dem Schweizer Datenschutzgesetz (DSG) zustehen.</p>
+        <p>Diese Datenschutzerklärung informiert dich darüber, welche Personendaten auf dieser Website bearbeitet werden, zu welchem Zweck, an wen sie bekanntgegeben werden und welche Rechte dir gemäss dem Schweizer Datenschutzgesetz (DSG) zustehen.</p>
 
         <h2>Verantwortliche Stelle</h2>
         <address class="addr">
@@ -51,24 +50,32 @@
           <a href="mailto:info@rinaldo-kraettli.ch">info@rinaldo-kraettli.ch</a>
         </address>
 
+        <h2>Hosting und Server-Logfiles</h2>
+        <p>Diese Website wird bei <strong>Vercel Inc.</strong> (<strong>USA</strong>) gehostet und über deren weltweites Servernetz ausgeliefert. Bei jedem Aufruf der Website erfasst Vercel automatisch technische Informationen (insbesondere IP-Adresse, Datum und Uhrzeit des Zugriffs, aufgerufene Seite, Browsertyp und Betriebssystem). Diese Daten sind technisch nötig, um die Website auszuliefern und vor Missbrauch zu schützen. Sie werden von mir nicht ausgewertet und nicht mit anderen Daten zusammengeführt und von Vercel nur kurzfristig gespeichert.</p>
+        <p>Vercel ist unter dem Swiss-U.S. Data Privacy Framework zertifiziert. Für Unternehmen mit dieser Zertifizierung hat der Bundesrat ein angemessenes Datenschutzniveau festgestellt. Weitere Informationen: <a href="https://vercel.com/legal/privacy-policy" target="_blank" rel="noopener">Datenschutzerklärung von Vercel</a>.</p>
+
         <h2>Kontaktformular</h2>
-        <p>Wenn du das Kontaktformular auf dieser Seite ausfüllst, werden die von dir eingegebenen Daten (Name, E-Mail-Adresse, ggf. Angaben zu deinem Auto, Anlass, Nachricht) verarbeitet, um deine Anfrage zu beantworten.</p>
-        <p>Diese Daten werden ausschliesslich zur Bearbeitung deiner Anfrage verwendet. Für den technischen Versand des Formulars wird der Dienst <a href="https://formspree.io" target="_blank" rel="noopener">Formspree</a> (Formspree, Inc., USA) eingesetzt. Dabei werden deine Formular-Angaben an Server von Formspree in den USA übermittelt. Formspree ist vertraglich verpflichtet, die Daten ausschliesslich zur Weiterleitung der Anfrage per E-Mail zu verwenden. Weitere Informationen findest du in der <a href="https://formspree.io/legal/privacy-policy" target="_blank" rel="noopener">Datenschutzerklärung von Formspree</a>.</p>
+        <p>Wenn du das Kontaktformular ausfüllst, werden deine Angaben (Name, E-Mail-Adresse, ggf. Auto, Anlass und Nachricht) bearbeitet, um deine Anfrage zu beantworten und gegebenenfalls ein Shooting mit dir zu planen.</p>
+        <p>Für den technischen Versand nutze ich den Dienst <strong>Formspree, Inc.</strong> (USA). Deine Formular-Angaben werden dabei an Server von Formspree in den USA übermittelt, dort zum Schutz vor Spam geprüft und anschliessend per E-Mail an mich weitergeleitet. Die Übermittlung in die USA stützt sich auf geeignete Garantien gemäss Art. 16 Abs. 2 DSG (Standarddatenschutzklauseln). Weitere Informationen: <a href="https://formspree.io/legal/privacy-policy" target="_blank" rel="noopener">Datenschutzerklärung von Formspree</a>.</p>
 
-        <h2>Server-Logfiles</h2>
-        <p>Beim Besuch dieser Website erfasst der Hosting-Anbieter automatisch technische Informationen (z. B. IP-Adresse, Browsertyp, Datum und Uhrzeit des Zugriffs). Diese Daten dienen ausschliesslich der technischen Bereitstellung und Sicherheit der Website und werden nicht mit anderen Datenquellen zusammengeführt.</p>
+        <h2>Kontakt per E-Mail oder Telefon</h2>
+        <p>Wenn du mich per E-Mail oder Telefon kontaktierst, bearbeite ich deine Angaben ausschliesslich zur Beantwortung deiner Anfrage. E-Mails werden bei meinem E-Mail-Dienstleister gespeichert.</p>
 
-        <h2>Google Fonts</h2>
-        <p>Diese Website lädt Schriftarten von Google Fonts. Dabei wird eine Verbindung zu Servern von Google hergestellt, wodurch deine IP-Adresse an Google übermittelt werden kann. Weitere Informationen findest du in der <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Datenschutzerklärung von Google</a>.</p>
+        <h2>Aufbewahrungsdauer</h2>
+        <p>Anfragen, aus denen kein Auftrag entsteht, lösche ich spätestens 12 Monate nach dem letzten Kontakt. Kommt ein Auftrag zustande, bewahre ich die geschäftsrelevante Korrespondenz so lange auf, wie es die gesetzlichen Aufbewahrungspflichten verlangen (in der Regel 10 Jahre).</p>
+
+        <h2>Schriftarten</h2>
+        <p>Die auf dieser Website verwendeten Schriftarten werden direkt von diesem Server geladen. Es wird dafür keine Verbindung zu Google oder anderen Drittanbietern aufgebaut.</p>
 
         <h2>Cookies und Analyse-Tools</h2>
-        <p>Diese Website verwendet aktuell keine Cookies zu Analyse- oder Marketingzwecken und bindet keine Tracking-Tools ein.</p>
+        <p>Diese Website setzt keine Cookies und bindet keine Analyse-, Tracking- oder Marketing-Tools ein.</p>
 
         <h2>Externe Links</h2>
-        <p>Diese Website verlinkt auf Instagram und LinkedIn. Beim Klick auf diese Links verlässt du autofotograf.ch — für die Datenbearbeitung auf diesen Plattformen gelten deren eigene Datenschutzbestimmungen.</p>
+        <p>Diese Website verlinkt auf Instagram, LinkedIn und Google. Beim Klick auf diese Links verlässt du autofotograf.ch. Für die Datenbearbeitung auf diesen Plattformen gelten deren eigene Datenschutzbestimmungen.</p>
 
         <h2>Deine Rechte</h2>
-        <p>Gemäss Schweizer Datenschutzgesetz (DSG) hast du das Recht, Auskunft über die von dir bearbeiteten Personendaten zu verlangen sowie deren Berichtigung, Löschung oder Einschränkung der Bearbeitung zu verlangen. Wende dich dazu einfach per E-Mail an <a href="mailto:info@rinaldo-kraettli.ch">info@rinaldo-kraettli.ch</a>.</p>
+        <p>Gemäss DSG hast du das Recht auf Auskunft über deine bei mir bearbeiteten Personendaten sowie auf deren Berichtigung oder Löschung. Du kannst einer Bearbeitung zudem widersprechen. Wende dich dazu per E-Mail an <a href="mailto:info@rinaldo-kraettli.ch">info@rinaldo-kraettli.ch</a>.</p>
+        <p>Du hast ausserdem das Recht, dich beim Eidgenössischen Datenschutz- und Öffentlichkeitsbeauftragten (EDÖB) zu beschweren: <a href="https://www.edoeb.admin.ch" target="_blank" rel="noopener">www.edoeb.admin.ch</a>.</p>
 
         <h2>Änderungen</h2>
         <p>Diese Datenschutzerklärung kann bei Bedarf angepasst werden, um sie an aktuelle rechtliche Anforderungen oder Änderungen der Website anzupassen. Massgebend ist die jeweils aktuelle, auf dieser Seite publizierte Fassung.</p>
@@ -96,6 +103,6 @@
     </div>
   </footer>
 
-  <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+  <script src="assets/year.js"></script>
 </body>
 </html>

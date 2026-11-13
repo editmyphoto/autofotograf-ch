@@ -236,7 +236,7 @@ document.getElementById("year").textContent = new Date().getFullYear();
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
 
-    if (form.firma.value) return; // Honeypot ausgelöst — still abbrechen, keine Fehlermeldung an Bots
+    if (form.elements._gotcha.value) return; // Honeypot ausgelöst — still abbrechen (Formspree prüft _gotcha zusätzlich serverseitig)
 
     if (!form.checkValidity()) {
       form.reportValidity();
