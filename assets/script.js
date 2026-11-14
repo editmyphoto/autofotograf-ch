@@ -264,6 +264,7 @@ document.getElementById("year").textContent = new Date().getFullYear();
       if (response.ok) {
         status.dataset.state = "ok";
         status.textContent = "Danke! Ich melde mich innerhalb von 24 Stunden.";
+        if (window.va) window.va("event", { name: "Kontaktformular gesendet" });
         form.reset();
       } else {
         throw new Error("Versand fehlgeschlagen");
