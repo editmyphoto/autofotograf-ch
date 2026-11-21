@@ -1,10 +1,6 @@
 /* Pässefahrten 3D: Fotohalte mit Lichtzeiten (ohne 3D) und 3D-Fahrt auf Knopfdruck (lädt erst dann Daten von swisstopo). */
 const $ = id => document.getElementById(id);
-const PASS = {
-  julier: { saison: 'Ganzjährig offen, im Winter mit Winterausrüstung.', winter: [] },
-  albula: { saison: 'Im Winter gesperrt, meist etwa November bis Mai.', winter: [11, 12, 1, 2, 3, 4, 5] },
-  fluela: { saison: 'Im Winter zeitweise gesperrt (Lawinengefahr).', winter: [] },
-};
+const winter = d => /gesperrt \(meist/.test(d.saison || '') ? [11, 12, 1, 2, 3, 4, 5] : [];
 const MON = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
 const DIR = ['Norden', 'Nordosten', 'Osten', 'Südosten', 'Süden', 'Südwesten', 'Westen', 'Nordwesten'];
 const hh = m => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(Math.round(m % 60)).padStart(2, '0')}`;
@@ -12,7 +8,7 @@ const dir = b => DIR[Math.round(b / 45) % 8];
 const fmt = v => new Intl.NumberFormat('de-CH').format(v);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const cache = {};
-const load = k => cache[k] ||= fetch(`assets/3d/strecken/${k}.json?v=1`).then(r => r.json());
+const load = k => cache[k] ||= fetch(`assets/3d/strecken/${k}.json?v=2`).then(r => r.json());
 
 let key = 'julier', month = new Date().getMonth() + 1, F = null, data = null;
 if (month < 5 || month > 10) month = 6; // ausserhalb der Saison: Juni zeigen
@@ -39,7 +35,7 @@ function licht(h, m) {
 
 /** Abfahrt so planen, dass man zum besten Licht auf dem wichtigsten Fotohalt ist (Ø 40 km/h). */
 function plan(d, m) {
-  const fotos = d.halte.filter(h => h.art === 'foto'), main = fotos.find(h => /Höhe/.test(h.name)) || fotos[0];
+  const fotos = d.halte.filter(h => h.art === 'foto'), main = d.halte.find(h => /Höhe/.test(h.name)) || fotos[0];
   if (!main) return null;
   const L = licht(main, m), km = main.i * d.step / 1000, fahr = km / 40 * 60 + 10, start = d.halte[0];
   const ziel = L.eA ?? L.mA ?? L.down;
@@ -50,10 +46,10 @@ function plan(d, m) {
 }
 
 function render() {
-  const d = data, m = month, p = PASS[key];
-  $('pfMeta').textContent = `${d.von} – ${d.nach} · ${fmt(d.km)} km · ${fmt(d.hoch)} m hinauf · höchster Punkt ${fmt(d.max)} m ü. M. · ${p.saison}`;
+  const d = data, m = month;
+  $('pfMeta').textContent = `${d.von} – ${d.nach} · ${fmt(d.km)} km · ${fmt(d.hoch)} m hinauf · höchster Punkt ${fmt(d.max)} m ü. M. · ${d.saison || ''} Strasse vor der Fahrt prüfen.`;
   const pl = plan(d, m);
-  $('pfPlan').innerHTML = (p.winter.includes(m) ? `<b>Im ${MON[m - 1]} ist der Pass meist gesperrt.</b> ` : '') + (pl ? pl.text : '');
+  $('pfPlan').innerHTML = (winter(d).includes(m) ? `<b>Im ${MON[m - 1]} ist der Pass meist gesperrt.</b> ` : '') + (pl ? pl.text : '');
   $('pfStops').innerHTML = d.halte.map((h, n) => {
     const L = licht(h, m), km = (h.i * d.step / 1000).toFixed(1);
     return `<button class="pf-stop${h.art === 'foto' ? ' is-foto' : ''}" type="button" data-n="${n}"><span class="k">km ${km}${h.art === 'foto' ? ' · Fotohalt' : h.art === 'start' ? ' · Start' : h.art === 'ziel' ? ' · Ziel' : ''}</span><h3>${esc(h.name)}</h3>${h.text ? `<p class="k">${esc(h.text)}</p>` : ''}<p class="best">${esc(L.best)}</p><ul>${L.lines.map(l => `<li>${esc(l)}</li>`).join('')}</ul></button>`;
@@ -66,15 +62,17 @@ function apply3d() {
   const view = { ...d, halte: d.halte.map(h => ({ ...h, licht: h.licht_kurz })) };
   F.set({ titel: d.name, untertitel: `${d.von} – ${d.nach} · ${fmt(d.km)} km · ${MON[month - 1]}` });
   F.setTime(`2027-${String(month).padStart(2, '0')}-15`, pl?.start || '10:00');
+  const wasDriving = !!F.drive;
   F.setRoute(view);
+  if (wasDriving) F.fahren(true);
 }
 
 async function choose(k) {
   key = k;
-  for (const b of document.querySelectorAll('.pf-tabs button')) b.setAttribute('aria-selected', b.dataset.k === k ? 'true' : 'false');
+  $('pfPass').value = k; if (location.hash.slice(1) !== k) history.replaceState(null, '', '#' + k);
   data = await load(k); render();
 }
-document.querySelector('.pf-tabs').addEventListener('click', e => { const b = e.target.closest('button[data-k]'); if (b && b.dataset.k !== key) { F?.pause(); choose(b.dataset.k); } });
+$('pfPass').addEventListener('change', async () => { F?.pause(); await choose($('pfPass').value); });
 sel.addEventListener('change', () => { month = +sel.value; F?.pause(); render(); });
 $('pfStops').addEventListener('click', e => {
   const b = e.target.closest('.pf-stop'); if (!b || !F) return;
@@ -89,7 +87,7 @@ async function start3d(drive) {
   const btn = drive ? $('pfDrive') : $('pfStart'), label = btn.textContent; btn.textContent = 'Wird geladen …';
   try {
     globalThis.SC_VENDOR = new URL('./3d/vendor/', import.meta.url).href; // Draco-Decoder für die 3D-Häuser von hier, nicht von einem CDN
-    const { mountStrecke } = await import('./3d/strecke3d.js?v=4');
+    const { mountStrecke } = await import('./3d/strecke3d.js?v=7');
     const host = document.createElement('div'); $('pfStage').replaceChildren(host);
     F = await mountStrecke(host, { farbe: '#e0793c', kmh: 40, dauer: 70, modus: 'film', fahren: true, autofarbe: 0x8e2a1c });
     window.__flug = F;
@@ -103,7 +101,7 @@ async function start3d(drive) {
 $('pfStart').addEventListener('click', () => start3d(false));
 $('pfDrive').addEventListener('click', () => start3d(true));
 
-choose('julier');
+choose([...$('pfPass').options].some(o => o.value === location.hash.slice(1)) ? location.hash.slice(1) : 'julier');
 
 /* Film auf ganzer Breite: spielt nur, solange er sichtbar ist; lädt erst beim Hinscrollen. Bei «weniger Bewegung» nur Standbild. */
 (() => {

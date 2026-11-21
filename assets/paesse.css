@@ -60,3 +60,6 @@
 }
 .pf-start-row { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
 .pf-start-row .btn:not(.btn-solid) { background: rgba(20,16,13,.55); }
+.pf-pick { display: flex; gap: 12px 16px; align-items: center; flex-wrap: wrap; }
+.pf-pick label { font-family: var(--mono); font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-faint); }
+.pf-pick select { font: inherit; font-size: 1.05rem; background: var(--bg-raise); color: var(--ink); border: 1px solid var(--accent); padding: 10px 14px; min-width: min(320px, 100%); }

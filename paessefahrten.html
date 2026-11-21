@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Pässefahrten 3D — Julier, Albula, Flüela | autofotograf.ch</title>
-  <meta name="description" content="Julierpass, Albulapass und Flüelapass als 3D-Fahrt über echtes Gelände – mit Fotohalten und der Uhrzeit, wann dort das Licht stimmt. Für Clubausfahrten, Rallyes und Auto-Events in Graubünden.">
+  <title>Pässefahrten 3D — 20 Schweizer Pässe selbst fahren | autofotograf.ch</title>
+  <meta name="description" content="Julier, Albula, Flüela, Ofen, Bernina, Gotthard, Furka, Grimsel, Susten und weitere Pässe als 3D-Fahrt über echtes Gelände – mit Fotohalten und der Uhrzeit, wann dort das Licht stimmt. Für Clubausfahrten, Rallyes und Auto-Events in Graubünden.">
   <link rel="canonical" href="https://www.autofotograf.ch/paessefahrten.html">
   <meta name="robots" content="index, follow">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="autofotograf.ch">
-  <meta property="og:title" content="Pässefahrten 3D — Julier, Albula, Flüela">
+  <meta property="og:title" content="Pässefahrten 3D — 20 Schweizer Pässe">
   <meta property="og:description" content="Die Route kennen, bevor der Motor läuft: Bündner Pässe in 3D, mit Fotohalten und bestem Licht.">
   <meta property="og:url" content="https://www.autofotograf.ch/paessefahrten.html">
   <meta property="og:image" content="https://www.autofotograf.ch/assets/img/autofotograf-graubuenden-porsche-passstrasse.jpg">
@@ -20,8 +20,8 @@
   <link rel="preload" href="assets/fonts/manrope-normal-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="assets/fonts.css">
   <link rel="stylesheet" href="assets/styles.css">
-  <link rel="stylesheet" href="assets/3d/strecke3d.css?v=4">
-  <link rel="stylesheet" href="assets/paesse.css?v=3">
+  <link rel="stylesheet" href="assets/3d/strecke3d.css?v=5">
+  <link rel="stylesheet" href="assets/paesse.css?v=4">
   <script defer src="/assets/stats.js"></script>
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
@@ -45,16 +45,18 @@
       <div class="wrap">
         <p class="eyebrow">Pässefahrten in 3D · Graubünden</p>
         <h1>Die Route kennen, bevor der Motor läuft.</h1>
-        <p class="pf-lede">Julier, Albula und Flüela zum Selberfahren oder als Flug über echtes Gelände – mit den Fotohalten und der Uhrzeit, wann dort das Licht stimmt. So plane ich Shootings. Und so können Clubs, Rallyes und Händler ihre nächste Ausfahrt zeigen, bevor jemand den Schlüssel dreht.</p>
+        <p class="pf-lede">Alle bekannten Bündner Pässe und die wichtigsten der Schweiz zum Selberfahren oder als Flug über echtes Gelände – mit den Fotohalten und der Uhrzeit, wann dort das Licht stimmt. So plane ich Shootings. Und so können Clubs, Rallyes und Händler ihre nächste Ausfahrt zeigen, bevor jemand den Schlüssel dreht.</p>
       </div>
     </header>
 
     <section class="pf-app" aria-label="Pässe in 3D">
       <div class="wrap">
-        <div class="pf-tabs" role="tablist" aria-label="Pass wählen">
-          <button role="tab" data-k="julier" aria-selected="true">Julierpass</button>
-          <button role="tab" data-k="albula" aria-selected="false">Albulapass</button>
-          <button role="tab" data-k="fluela" aria-selected="false">Flüelapass</button>
+        <div class="pf-pick">
+          <label for="pfPass">Pass wählen</label>
+          <select id="pfPass">
+            <optgroup label="Graubünden"><option value="albula">Albulapass</option><option value="bernina">Berninapass</option><option value="fluela">Flüelapass</option><option value="julier">Julierpass</option><option value="lenzerheide">Lenzerheide</option><option value="lukmanier">Lukmanierpass</option><option value="maloja">Malojapass</option><option value="oberalp">Oberalppass</option><option value="ofen">Ofenpass</option><option value="sanbernardino">San-Bernardino-Pass</option><option value="spluegen">Splügenpass</option><option value="umbrail">Umbrailpass</option></optgroup>
+            <optgroup label="Weitere Schweizer Pässe"><option value="furka">Furkapass</option><option value="gotthard">Gotthardpass (Tremola)</option><option value="grimsel">Grimselpass</option><option value="grstbernhard">Grosser St. Bernhard</option><option value="klausen">Klausenpass</option><option value="nufenen">Nufenenpass</option><option value="simplon">Simplonpass</option><option value="susten">Sustenpass</option></optgroup>
+          </select>
         </div>
         <p class="pf-meta" id="pfMeta"></p>
 
@@ -151,6 +153,6 @@
       </div>
     </div>
   </footer>
-  <script type="module" src="assets/paesse.js?v=6"></script>
+  <script type="module" src="assets/paesse.js?v=9"></script>
 </body>
 </html>

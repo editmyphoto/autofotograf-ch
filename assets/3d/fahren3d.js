@@ -221,25 +221,28 @@ export async function startFahren(ctx) {
 
   /* Auto, Fahrzustand */
   const car = makeCar(O.autofarbe || 0xb8b8bc); scene.add(car);
-  const Fz = { s: clamp(S.s, 0, L - 10), v: 0, gas: 0, brake: 0, auto: false, view: 'hinten', look: 0, lookV: 0, warnT: 0 };
+  const Fz = { s: clamp(S.s, 0, L - 10), v: 0, gas: 0, brake: 0, auto: false, view: 'hinten', look: 0, lookV: 0, warnT: 0, halt: false, aus: false, pitch: 0 };
   D.t = 0; D.focus = new THREE.Vector3();
   camera.near = 0.1; camera.updateProjectionMatrix();
 
   /* Bedienung: Anzeige + Pedale (Touch) + Tasten */
   const ui = document.createElement('div'); ui.className = 's3-drive-ui';
   ui.innerHTML = `<div class="s3-speedo"><b>0</b><span>km/h</span></div><div class="s3-warn" hidden>Zu schnell für die Kurve!</div>
-    <div class="s3-pedals"><button class="s3-brake" aria-label="Bremse">Bremse</button><button class="s3-auto" aria-pressed="false">Autopilot</button><button class="s3-gas" aria-label="Gas">Gas</button></div>
-    <p class="s3-keys">Pfeiltasten ↑ Gas, ↓ Bremse, A Autopilot, V Ansicht · ziehen: umschauen</p>`;
+    <div class="s3-peaks"></div><div class="s3-view-hint" hidden>Ziehen zum Umschauen · Mausrad oder zwei Finger zum Zoomen</div>
+    <div class="s3-pedals"><button class="s3-brake" aria-label="Bremse">Bremse</button><div class="s3-mid"><button class="s3-halt-b">📷 Anhalten &amp; Aussicht</button><button class="s3-auto" aria-pressed="false">Autopilot</button></div><button class="s3-gas" aria-label="Gas">Gas</button></div>
+    <p class="s3-keys">Pfeiltasten ↑ Gas, ↓ Bremse, H Anhalten, A Autopilot, V Ansicht · ziehen: umschauen</p>`;
   $('.s3-stage').appendChild(ui);
-  const speedEl = ui.querySelector('.s3-speedo b'), warnEl = ui.querySelector('.s3-warn'), autoB = ui.querySelector('.s3-auto');
-  const hold = (el, key) => { const on = e => { e.preventDefault(); Fz[key] = 1; if (key === 'gas' || key === 'brake') setAuto(false); }, off = () => { Fz[key] = 0; }; el.addEventListener('pointerdown', on); el.addEventListener('pointerup', off); el.addEventListener('pointerleave', off); el.addEventListener('pointercancel', off); };
+  const speedEl = ui.querySelector('.s3-speedo b'), warnEl = ui.querySelector('.s3-warn'), autoB = ui.querySelector('.s3-auto'), haltB = ui.querySelector('.s3-halt-b'), peaksEl = ui.querySelector('.s3-peaks'), hintEl = ui.querySelector('.s3-view-hint');
+  haltB.addEventListener('click', () => Fz.aus || Fz.halt ? weiter() : anhalten());
+  const hold = (el, key) => { const on = e => { e.preventDefault(); Fz[key] = 1; if (key === 'gas' || key === 'brake') setAuto(false); if (key === 'gas' && (Fz.aus || Fz.halt)) weiter(); }, off = () => { Fz[key] = 0; }; el.addEventListener('pointerdown', on); el.addEventListener('pointerup', off); el.addEventListener('pointerleave', off); el.addEventListener('pointercancel', off); };
   hold(ui.querySelector('.s3-gas'), 'gas'); hold(ui.querySelector('.s3-brake'), 'brake');
   const setAuto = on => { Fz.auto = on; autoB.setAttribute('aria-pressed', on ? 'true' : 'false'); };
   autoB.addEventListener('click', () => setAuto(!Fz.auto));
   const keys = e => {
     if (!root.isConnected || ['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
     const d = e.type === 'keydown';
-    if (['ArrowUp', 'KeyW'].includes(e.code)) { Fz.gas = d ? 1 : 0; if (d) setAuto(false); e.preventDefault(); }
+    if (['ArrowUp', 'KeyW'].includes(e.code)) { Fz.gas = d ? 1 : 0; if (d) { setAuto(false); if (Fz.aus || Fz.halt) weiter(); } e.preventDefault(); }
+    else if (d && e.code === 'KeyH') { Fz.aus || Fz.halt ? weiter() : anhalten(); }
     else if (['ArrowDown', 'KeyS', 'Space'].includes(e.code)) { Fz.brake = d ? 1 : 0; if (d) setAuto(false); e.preventDefault(); }
     else if (d && e.code === 'KeyA') setAuto(!Fz.auto);
     else if (d && e.code === 'KeyV') { const i = VIEWS.findIndex(v => v[0] === Fz.view); D.view(VIEWS[(i + 1) % VIEWS.length][0]); }
@@ -247,13 +250,90 @@ export async function startFahren(ctx) {
   addEventListener('keydown', keys); addEventListener('keyup', keys);
   // Umschauen mit Ziehen
   const gl = renderer.domElement; let drag = null;
-  const pd = e => { drag = e.clientX; gl.setPointerCapture?.(e.pointerId); }, pm = e => { if (drag == null) return; Fz.look = clamp(Fz.look - (e.clientX - drag) * 0.006, -2.6, 2.6); drag = e.clientX; }, pu = () => { drag = null; };
+  let dragY = 0; const ptrs = new Map(); let pinch = 0;
+  const pd = e => { ptrs.set(e.pointerId, [e.clientX, e.clientY]); drag = e.clientX; dragY = e.clientY; gl.setPointerCapture?.(e.pointerId); };
+  const pm = e => {
+    if (!ptrs.has(e.pointerId)) return; ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+    if (ptrs.size === 2) { const [a, b] = [...ptrs.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (pinch) zoom(pinch / d); pinch = d; return; }
+    if (drag == null) return;
+    const k = Fz.aus ? 0.0045 * camera.fov / 60 : 0.006;
+    Fz.look = Fz.aus ? Fz.look - (e.clientX - drag) * k : clamp(Fz.look - (e.clientX - drag) * k, -2.6, 2.6);
+    if (Fz.aus) Fz.pitch = clamp(Fz.pitch + (e.clientY - dragY) * k, -0.6, 0.7);
+    drag = e.clientX; dragY = e.clientY;
+  };
+  const pu = e => { ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = 0; if (!ptrs.size) drag = null; };
+  const zoom = f => { if (!Fz.aus) return; camera.fov = clamp(camera.fov * f, 12, 70); camera.updateProjectionMatrix(); };
+  const wh = e => { if (!Fz.aus) return; e.preventDefault(); zoom(Math.exp(e.deltaY * 0.001)); };
+  gl.addEventListener('wheel', wh, { passive: false });
+  gl.style.touchAction = 'none';
   gl.addEventListener('pointerdown', pd); gl.addEventListener('pointermove', pm); gl.addEventListener('pointerup', pu);
   // Kamera-Auswahl
   const modeSel = $('.s3-mode'), oldOpts = modeSel.innerHTML;
   modeSel.innerHTML = VIEWS.map(([k, n]) => `<option value="${k}">${n}</option>`).join('');
   D.view = v => { Fz.view = v; modeSel.value = v; Fz.look = 0; };
   D.view('hinten');
+
+  /* Anhalten und Aussicht geniessen: bremsen, aussteigen, Rundumblick mit Gipfelnamen */
+  function anhalten() { setAuto(false); Fz.gas = 0; Fz.halt = true; haltB.textContent = 'Hält an …'; }
+  function aussichtStart() {
+    Fz.aus = true; haltB.textContent = '▶ Weiterfahren'; hintEl.hidden = false; setTimeout(() => { hintEl.hidden = true; }, 5000);
+    // Blick zuerst auf die offene Seite (dorthin, wo das Gelände tiefer liegt)
+    const p = point(Fz.s, 0, new THREE.Vector3()), d = dirAt(Fz.s, new THREE.Vector3()), [i] = at(Fz.s), r = new THREE.Vector3().crossVectors(d, UP[i]).normalize(), g = {};
+    const hSide = sg => { let sum = 0; for (const m of [150, 400, 900]) { erde.toGeo(p.clone().addScaledVector(r, sg * m), g); sum += terrain.heightAt(g.lat, g.lon)?.h ?? 0; } return sum; };
+    const rechts = hSide(1) < hSide(-1); Fz.look = rechts ? Math.PI / 2 : -Math.PI / 2; Fz.pitch = 0.06;
+    Fz.stand = rechts ? LANE + 4.5 : -(ROAD_W / 2 + 3); // auf der Seite der Aussicht stehen, das Auto bleibt hinter einem
+    peaksT = 0.2; peaksRound = 0;
+  }
+  function weiter() { Fz.aus = false; Fz.halt = false; Fz.look = 0; Fz.pitch = 0; haltB.textContent = '📷 Anhalten & Aussicht'; hintEl.hidden = true; peaksEl.innerHTML = ''; peaks = []; camera.fov = 50; camera.updateProjectionMatrix(); }
+
+  // Gipfelnamen (OpenStreetMap, wie in der Fotografen-Ansicht): nur Gipfel, die vom Standpunkt aus zu sehen sind
+  const PEAKS = new URL('./peaks/', import.meta.url), peakTiles = new Map();
+  const peakTile = k => { if (!peakTiles.has(k)) peakTiles.set(k, fetch(new URL(`${k}.json`, PEAKS)).then(r => r.ok ? r.json() : []).catch(() => [])); return peakTiles.get(k); };
+  let peaks = [], peaksT = 0, peaksRound = 0, peaksBusy = false;
+  function peaksTick(dt) {
+    peaksT -= dt;
+    if (peaksT <= 0 && !peaksBusy && peaksRound < 3) { peaksT = 2.5; peaksRound++; findPeaks(); }
+    // Beschriftungen setzen
+    const W = gl.clientWidth, H = gl.clientHeight, v = new THREE.Vector3();
+    // Beschriftungen dürfen sich nicht überdecken: höhere (im Bild) zuerst, die anderen ausblenden
+    const placed = [], bw = W < 500 ? 70 : 110, bh = W < 500 ? 16 : 28;
+    for (const p of peaks) {
+      v.copy(p.P).project(camera); let on = v.z < 1 && Math.abs(v.x) < 1.05 && v.y < 0.95 && v.y > -1;
+      const x = (v.x + 1) / 2 * W, y = (1 - v.y) / 2 * H;
+      if (on && placed.some(([a, b]) => Math.abs(a - x) < bw && Math.abs(b - y) < bh)) on = false;
+      if (on) placed.push([x, y]);
+      p.el.style.display = on ? '' : 'none';
+      if (on) p.el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+    }
+  }
+  async function findPeaks() {
+    peaksBusy = true;
+    try {
+      const eye = camera.position.clone(), g0 = erde.toGeo(eye, {}), R0 = 60000;
+      const dLat = R0 / 110574, dLon = R0 / (111320 * Math.cos(g0.lat * Math.PI / 180)), keys = [];
+      for (let a = Math.floor(g0.lat - dLat); a <= Math.floor(g0.lat + dLat); a++) for (let o = Math.floor(g0.lon - dLon); o <= Math.floor(g0.lon + dLon); o++) keys.push(`${a}_${o}`);
+      const all = (await Promise.all(keys.map(peakTile))).flat();
+      const cand = [];
+      for (const [la, lo, ele, name] of all) {
+        if (!ele || !name) continue;
+        const P = erde.toScene(la, lo, ele), d = P.distanceTo(eye); if (d < 300 || d > R0) continue;
+        const gh = terrain.heightAt(la, lo); if (gh && Math.abs(gh.h - ele) > 350) continue; // passt nicht zum Gelände
+        cand.push({ P, d, ele, name, la, lo, ang: Math.asin((P.clone().sub(eye).normalize()).dot(erde.up(g0.lat, g0.lon))) });
+      }
+      cand.sort((a, b) => b.ang - a.ang);
+      const vis = [], g = {}, dir = new THREE.Vector3(), q = new THREE.Vector3();
+      for (const c of cand) {
+        if (vis.some(o => o.P.distanceTo(c.P) < 1800)) continue;            // Nachbar erscheint schon höher
+        dir.copy(c.P).sub(eye).normalize(); let ok = true;
+        for (let s = 80; s < c.d - Math.max(250, c.d * 0.02); s += Math.max(40, s * 0.02)) {
+          q.copy(eye).addScaledVector(dir, s); erde.toGeo(q, g); const h = terrain.heightAt(g.lat, g.lon);
+          if (h && h.h > g.h + (s > 8000 ? 20 : 2)) { ok = false; break; }
+        }
+        if (ok) vis.push(c); if (vis.length >= 30) break;
+      }
+      peaksEl.innerHTML = ''; peaks = vis.map(c => { const el = document.createElement('div'); el.className = 's3-peak'; el.innerHTML = `<b>${c.name.replace(/[&<>]/g, '')}</b><span>${new Intl.NumberFormat('de-CH').format(Math.round(c.ele))} m · ${(c.d / 1000).toFixed(c.d < 10000 ? 1 : 0)} km</span>`; peaksEl.appendChild(el); return { ...c, el }; });
+    } finally { peaksBusy = false; }
+  }
 
   /* Schleife (von strecke3d.js jedes Bild aufgerufen) */
   const camP = new THREE.Vector3(), camL = new THREE.Vector3(); let first = true, roadT = 0;
@@ -264,6 +344,7 @@ export async function startFahren(ctx) {
     const [i0] = at(Fz.s), j0 = Math.min(N - 1, i0 + 4), grade = (Hs[j0] - Hs[i0]) / ((j0 - i0) * FINE || 1);
     let a = Fz.gas * 3.0 - Fz.brake * 7.5 - 0.0009 * Fz.v * Fz.v - 0.12 - 9.81 * grade * 0.55;
     if (Fz.auto) { const tgt = Math.min(vCurve, 22); a = clamp((tgt - Fz.v) * 1.2, -6, 2.2); }
+    if (Fz.halt || Fz.aus) { a = -6; if (Fz.halt && Fz.v < 0.2) { Fz.halt = false; aussichtStart(); } }
     if (!Fz.gas && !Fz.auto && Fz.v < 0.3 && !Fz.brake) a = Math.min(a, 0);
     Fz.v = clamp(Fz.v + a * dt, 0, 33);
     const lat = Fz.v * Fz.v * curvature(Fz.s);
@@ -288,6 +369,15 @@ export async function startFahren(ctx) {
     const yaw = Fz.look, cy = Math.cos(yaw), sy = Math.sin(yaw);
     const look = new THREE.Vector3().copy(fwd).multiplyScalar(cy).addScaledVector(right, sy);
     const cp = new THREE.Vector3(), cl = new THREE.Vector3();
+    if (Fz.aus) {
+      // neben dem Auto am Strassenrand stehen, Augenhöhe 1,7 m, frei umschauen
+      cp.copy(point(Fz.s, Fz.stand || LANE + 4.5, _q)).addScaledVector(up, 1.7);
+      const yawDir = new THREE.Vector3().copy(fwd).multiplyScalar(Math.cos(Fz.look)).addScaledVector(right, Math.sin(Fz.look));
+      cl.copy(cp).addScaledVector(yawDir, Math.cos(Fz.pitch) * 100).addScaledVector(up, Math.sin(Fz.pitch) * 100);
+      camP.copy(cp); camL.copy(cl); camera.position.copy(camP); camera.up.copy(up); camera.lookAt(camL);
+      car.visible = true; terrainShadows(); mountainShadow(dt, car.position); updateCity(Fz.s); peaksTick(dt);
+      return;
+    }
     if (Fz.view === 'cockpit') { cp.copy(car.position).addScaledVector(up, 1.18).addScaledVector(right, -0.36).addScaledVector(fwd, 0.15); cl.copy(cp).addScaledVector(look, 30).addScaledVector(up, -1.2); }
     else if (Fz.view === 'hinten') { cp.copy(car.position).addScaledVector(look, -8.5).addScaledVector(up, 2.9); cl.copy(car.position).addScaledVector(look, 9).addScaledVector(up, 0.9); }
     else if (Fz.view === 'drohne') { cp.copy(car.position).addScaledVector(look, -45).addScaledVector(up, 26); cl.copy(car.position).addScaledVector(look, 25); }
@@ -304,10 +394,11 @@ export async function startFahren(ctx) {
     D.stopped = true; scene.remove(car); if (road) { scene.remove(road); road.geometry.dispose(); }
     for (const g of city.values()) if (g) { scene.remove(g); g.traverse(o => o.geometry?.dispose()); }
     ui.remove(); removeEventListener('keydown', keys); removeEventListener('keyup', keys);
-    gl.removeEventListener('pointerdown', pd); gl.removeEventListener('pointermove', pm); gl.removeEventListener('pointerup', pu);
+    gl.removeEventListener('pointerdown', pd); gl.removeEventListener('pointermove', pm); gl.removeEventListener('pointerup', pu); gl.removeEventListener('wheel', wh); camera.fov = 50; camera.updateProjectionMatrix();
     modeSel.innerHTML = oldOpts; modeSel.value = S.mode; sunL.castShadow = false; renderer.shadowMap.enabled = false; camera.near = 2; camera.updateProjectionMatrix(); D.sunVis = 1;
   };
-  D.state = () => ({ s: Fz.s, v: Fz.v * 3.6, view: Fz.view, auto: Fz.auto, city: city.size, sun: D.sunVis });
+  D.state = () => ({ s: Fz.s, v: Fz.v * 3.6, view: Fz.view, auto: Fz.auto, city: city.size, sun: D.sunVis, aussicht: Fz.aus, gipfel: peaks.length });
+  D.anhalten = anhalten; D.weiter = weiter;
   D.control = o => Object.assign(Fz, o);
   buildRoad(Fz.s);
   return D;
