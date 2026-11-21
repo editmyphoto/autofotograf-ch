@@ -87,7 +87,7 @@ async function start3d(drive) {
   const btn = drive ? $('pfDrive') : $('pfStart'), label = btn.textContent; btn.textContent = 'Wird geladen …';
   try {
     globalThis.SC_VENDOR = new URL('./3d/vendor/', import.meta.url).href; // Draco-Decoder für die 3D-Häuser von hier, nicht von einem CDN
-    const { mountStrecke } = await import('./3d/strecke3d.js?v=7');
+    const { mountStrecke } = await import('./3d/strecke3d.js?v=9');
     const host = document.createElement('div'); $('pfStage').replaceChildren(host);
     F = await mountStrecke(host, { farbe: '#e0793c', kmh: 40, dauer: 70, modus: 'film', fahren: true, autofarbe: 0x8e2a1c });
     window.__flug = F;
@@ -95,7 +95,8 @@ async function start3d(drive) {
     if (drive) { F.seek(0); await F.fahren(true); } else setTimeout(() => F.play(), 400);
   } catch (e) {
     for (const b of btns) b.disabled = false; btn.textContent = label;
-    btn.parentElement.insertAdjacentHTML('afterend', '<p>Die 3D-Fahrt konnte nicht starten. Sie braucht einen aktuellen Browser mit WebGL.</p>');
+    $('pfStage').innerHTML = '<div class="pf-poster"><div class="pf-poster-copy"><p>Die 3D-Fahrt konnte nicht starten. Sie braucht 3D-Grafik (WebGL) im Browser. Oft hilft es, die Seite neu zu laden oder andere Tabs zu schliessen.</p><button class="btn btn-solid" type="button" id="pfReload">Neu laden</button></div></div>';
+    $('pfReload').addEventListener('click', () => location.reload());
   }
 }
 $('pfStart').addEventListener('click', () => start3d(false));

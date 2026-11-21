@@ -184,13 +184,12 @@ export async function startFahren(ctx) {
       const gAt = (x, z) => terrain.heightAt(la - z / my, lo + x / mx)?.h ?? 0;
       const grp = new THREE.Group(); grp.matrixAutoUpdate = false;
       grp.matrix.copy(erde.basis(la, lo)).setPosition(erde.toScene(la, lo, 0));
-      if (c.parts.length) {
-        const med = a => { a = a.filter(Number.isFinite).sort((p, q) => p - q); return a.length ? a[a.length >> 1] : 49.5; };
-        const geoid = med(c.parts.map(g => g.userData.minY - gAt(g.userData.cx, g.userData.cz)));
-        const m = buildingMesh(c.parts, -geoid, false, gAt); if (m) { m.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; } }); grp.add(m); }
-      }
+      // Höhen direkt aus den swisstopo-Daten (Fusspunkt jedes Hauses und Baums), nicht aus dem Gelände:
+      // das feine Gelände ist beim Laden oft noch nicht da, grobe Kacheln liegen in steilen Hängen bis 50 m daneben.
+      if (c.parts.length) { const m = buildingMesh(c.parts, 0, false, gAt); if (m) { m.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; } }); grp.add(m); } }
       const trees = (MOBILE ? c.trees.filter((_, k) => k % 2 === 0) : c.trees);
-      for (const m of treeMeshes(trees, gAt)) { m.castShadow = true; m.receiveShadow = true; grp.add(m); }
+      const base = new Map(trees.map(t => [t.x + ',' + t.z, t.y]));
+      for (const m of treeMeshes(trees, (x, z) => (base.get(x + ',' + z) ?? gAt(x, z)) + 0.3)) { m.castShadow = true; m.receiveShadow = true; grp.add(m); }
       scene.add(grp); city.set(todo, grp);
       // alte Felder freigeben
       for (const [k2, g2] of city) { if (k2 === todo || k2 === key || k2 === kA || !g2) continue; const [y2, x2] = k2.split(',').map(Number); if (Math.hypot(y2 - ay, x2 - ax) > 2.5) { scene.remove(g2); g2.traverse(o => { o.geometry?.dispose(); }); city.delete(k2); } }
@@ -198,9 +197,10 @@ export async function startFahren(ctx) {
   }
 
   /* Licht: Schatten nahe am Auto, Bergschatten per Strahl durchs Gelände */
+  const keepNodes = terrain.maxNodes; terrain.maxNodes = Math.round(keepNodes * 0.8);
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  sunL.castShadow = true; const SM = MOBILE ? 2048 : 4096; sunL.shadow.mapSize.set(SM, SM);
-  Object.assign(sunL.shadow.camera, { left: -260, right: 260, top: 260, bottom: -260, near: 3000, far: 7000 }); sunL.shadow.camera.updateProjectionMatrix();
+  sunL.castShadow = true; const SM = MOBILE ? 1024 : 2048; sunL.shadow.mapSize.set(SM, SM);
+  Object.assign(sunL.shadow.camera, { left: -180, right: 180, top: 180, bottom: -180, near: 3000, far: 7000 }); sunL.shadow.camera.updateProjectionMatrix();
   sunL.shadow.bias = -0.00006; sunL.shadow.normalBias = 0.06; sunL.shadow.map?.dispose(); sunL.shadow.map = null;
   let shadowTiles = -1;
   const seen = new WeakSet();
@@ -221,7 +221,7 @@ export async function startFahren(ctx) {
 
   /* Auto, Fahrzustand */
   const car = makeCar(O.autofarbe || 0xb8b8bc); scene.add(car);
-  const Fz = { s: clamp(S.s, 0, L - 10), v: 0, gas: 0, brake: 0, auto: false, view: 'hinten', look: 0, lookV: 0, warnT: 0, halt: false, aus: false, pitch: 0 };
+  const Fz = { s: clamp(S.s, 25, L - 10), v: 0, gas: 0, brake: 0, auto: false, view: 'hinten', look: 0, lookV: 0, warnT: 0, halt: false, aus: false, pitch: 0 };
   D.t = 0; D.focus = new THREE.Vector3();
   camera.near = 0.1; camera.updateProjectionMatrix();
 
@@ -358,8 +358,8 @@ export async function startFahren(ctx) {
     roadT -= dt;
     if (roadFrom < 0 || Math.abs(Fz.s - roadFrom) > WIN * 0.35 || (roadT <= 0 && terrain.loadedCount !== roadZ)) { buildRoad(Fz.s); roadT = 1.5; }
     // Auto setzen (rechte Spur), Ausrichtung nach Fahrtrichtung und Steigung
-    point(Fz.s, LANE, car.position); const ahead = point(Fz.s + 2.2, LANE, _p), back = point(Fz.s - 2.2, LANE, _q);
-    const [ci] = at(Fz.s); car.up.copy(UP[ci]); car.lookAt(back); // Modell schaut nach -z → nach vorne zeigt die Rückseite des Ziels
+    point(Fz.s, LANE, car.position); const sb = clamp(Fz.s - 2.2, 0, L - 4.4), ahead = point(sb + 4.4, LANE, _p), back = point(sb, LANE, _q);
+    const [ci] = at(Fz.s); car.up.copy(UP[ci]); car.lookAt(_d.copy(car.position).add(back).sub(ahead)); // Modell schaut nach -z: Ziel hinter dem Auto, parallel zur Strasse
     car.position.addScaledVector(UP[ci], 0.0);
     for (const w of car.userData.wheels) w.rotation.x -= Fz.v * dt / 0.34;
     car.visible = Fz.view !== 'cockpit';
@@ -395,7 +395,7 @@ export async function startFahren(ctx) {
     for (const g of city.values()) if (g) { scene.remove(g); g.traverse(o => o.geometry?.dispose()); }
     ui.remove(); removeEventListener('keydown', keys); removeEventListener('keyup', keys);
     gl.removeEventListener('pointerdown', pd); gl.removeEventListener('pointermove', pm); gl.removeEventListener('pointerup', pu); gl.removeEventListener('wheel', wh); camera.fov = 50; camera.updateProjectionMatrix();
-    modeSel.innerHTML = oldOpts; modeSel.value = S.mode; sunL.castShadow = false; renderer.shadowMap.enabled = false; camera.near = 2; camera.updateProjectionMatrix(); D.sunVis = 1;
+    modeSel.innerHTML = oldOpts; modeSel.value = S.mode; sunL.castShadow = false; renderer.shadowMap.enabled = false; terrain.maxNodes = keepNodes; sunL.shadow.map?.dispose(); sunL.shadow.map = null; camera.near = 2; camera.updateProjectionMatrix(); D.sunVis = 1;
   };
   D.state = () => ({ s: Fz.s, v: Fz.v * 3.6, view: Fz.view, auto: Fz.auto, city: city.size, sun: D.sunVis, aussicht: Fz.aus, gipfel: peaks.length });
   D.anhalten = anhalten; D.weiter = weiter;

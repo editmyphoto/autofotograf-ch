@@ -133,6 +133,12 @@ export async function mountStrecke(root, opts = {}) {
   const renderer = new THREE.WebGLRenderer({ antialias: !MOBILE, logarithmicDepthBuffer: true, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(devicePixelRatio, MOBILE ? 1.5 : 2)); renderer.outputColorSpace = THREE.SRGBColorSpace;
   glHost.appendChild(renderer.domElement);
+  // Zu wenig Grafikspeicher (v. a. Handy): Browser beendet die 3D-Ansicht → klare Meldung statt schwarzem Bild
+  renderer.domElement.addEventListener('webglcontextlost', e => {
+    e.preventDefault(); S.lost = true;
+    cover.hidden = false; cover.innerHTML = '<div><b>Die 3D-Ansicht wurde vom Browser beendet.</b><span>Meist ist der Grafikspeicher voll. Neu laden hilft.</span><br><button class="s3-reload" type="button">Neu laden</button></div>';
+    cover.querySelector('.s3-reload').addEventListener('click', () => location.reload());
+  });
   const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(50, 16 / 9, 2, 600000);
   const hemi = new THREE.HemisphereLight(0xdde8f6, 0x5a6050, 1.0), sunL = new THREE.DirectionalLight(0xfff3e0, 2.0);
   scene.add(hemi, sunL, sunL.target);
@@ -162,7 +168,7 @@ export async function mountStrecke(root, opts = {}) {
     if (!erde || Math.hypot(la - erde.lat0, lo - erde.lon0) > 0.3) {
       if (terrain) { scene.remove(terrain.group); terrain.group.traverse(o => { o.geometry?.dispose(); o.material?.map?.dispose(); o.material?.dispose?.(); }); }
       erde = new Erde(la, lo);
-      terrain = new Gelaende(scene, erde, MOBILE ? { maxZ: 16, detail: 1.4, conc: 6, maxNodes: 420, anisotropy: 2 } : { maxZ: 17, detail: 2.2, conc: 12, maxNodes: 900, anisotropy: 8, texNear: true });
+      terrain = new Gelaende(scene, erde, MOBILE ? { maxZ: 16, detail: 1.4, conc: 6, maxNodes: 300, anisotropy: 2 } : { maxZ: 17, detail: 2.2, conc: 12, maxNodes: 560, anisotropy: 8, texNear: true });
     }
     const P = pts.map(p => erde.toScene(p[0], p[1], p[2] + 4)), D = pts.map((_, i) => i * data.step);
     const UP = pts.map(p => erde.up(p[0], p[1]));
@@ -328,6 +334,7 @@ export async function mountStrecke(root, opts = {}) {
   let lastProf = 0;
   function frame(now) { body(now); requestAnimationFrame(frame); }
   function body(now) {
+    if (S.lost) return;
     const dt = clamp((now - S.last) / 1000, 0, 0.1); S.last = Math.max(S.last, now);
     resize();
     if (!R) return;
@@ -414,7 +421,7 @@ export async function mountStrecke(root, opts = {}) {
       if (!R) return;
       api.pause(); driveB.disabled = true; driveB.textContent = 'Lädt …';
       try {
-        const { startFahren } = await import('./fahren3d.js?v=10');
+        const { startFahren } = await import('./fahren3d.js?v=12');
         S.drive = await startFahren({ THREE, scene, camera, renderer, erde, get terrain() { return terrain; }, R, S, O, root, sunL, posAt, idxAt, hAt });
         for (const m of lineMeshes) m.visible = false; marker.visible = false;
         driveB.textContent = '✕ Beenden';

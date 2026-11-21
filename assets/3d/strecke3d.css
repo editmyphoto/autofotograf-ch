@@ -75,3 +75,4 @@
 .s3-peak span { font-size: 10px; opacity: .85; }
 .s3-view-hint { position: absolute; left: 50%; top: 18%; transform: translateX(-50%); background: var(--s3-panel); padding: 6px 12px; border-radius: 99px; font-size: 12px; }
 @media (max-width: 640px) { .s3-peak { font-size: 10px; } .s3-peak span { display: none; } .s3-pedals .s3-halt-b { padding: 7px 10px; font-size: 11px; } }
+.s3-reload { margin-top: 12px; font: 600 14px system-ui, sans-serif; padding: 10px 18px; border-radius: 99px; border: 0; background: var(--s3-accent); color: #111; cursor: pointer; }
