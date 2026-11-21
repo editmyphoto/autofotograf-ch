@@ -277,3 +277,11 @@ document.getElementById("year").textContent = new Date().getFullYear();
     }
   });
 })();
+
+/* Pässe 3D: Film läuft nur, solange er sichtbar ist, und lädt erst beim Hinscrollen. Bei «weniger Bewegung» nur Standbild. */
+(() => {
+  const v = document.getElementById("passTeaserFilm");
+  if (!v || !("IntersectionObserver" in window)) return;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  new IntersectionObserver((es) => { if (es[0].isIntersecting) v.play().catch(() => {}); else v.pause(); }, { threshold: 0.3 }).observe(v);
+})();
