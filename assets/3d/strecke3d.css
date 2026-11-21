@@ -76,3 +76,35 @@
 .s3-view-hint { position: absolute; left: 50%; top: 18%; transform: translateX(-50%); background: var(--s3-panel); padding: 6px 12px; border-radius: 99px; font-size: 12px; }
 @media (max-width: 640px) { .s3-peak { font-size: 10px; } .s3-peak span { display: none; } .s3-pedals .s3-halt-b { padding: 7px 10px; font-size: 11px; } }
 .s3-reload { margin-top: 12px; font: 600 14px system-ui, sans-serif; padding: 10px 18px; border-radius: 99px; border: 0; background: var(--s3-accent); color: #111; cursor: pointer; }
+
+/* Selbst lenken, Rückwärtsgang */
+.s3-side { display: flex; gap: 8px; align-items: flex-end; pointer-events: none; }
+.s3-side button { pointer-events: auto; }
+.s3-pedals .s3-left, .s3-pedals .s3-right { padding: 18px 18px; font-size: 18px; }
+.s3-row { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.s3-pedals .s3-man, .s3-pedals .s3-rev { border-radius: 99px; padding: 8px 12px; font-size: 12px; }
+.s3-pedals .s3-man[aria-pressed="true"], .s3-pedals .s3-rev[aria-pressed="true"] { background: var(--s3-accent); color: #111; }
+.s3-gear { font-style: normal; font-weight: 700; }
+.s3-keys { bottom: 96px; }
+@media (max-width: 640px) {
+  .s3-pedals .s3-left, .s3-pedals .s3-right { padding: 14px 12px; font-size: 15px; }
+  .s3-pedals .s3-brake { padding: 14px 10px; } .s3-pedals .s3-gas { padding: 14px 14px; }
+  .s3-side { gap: 5px; } .s3-pedals .s3-man, .s3-pedals .s3-rev, .s3-pedals .s3-auto { padding: 6px 8px; font-size: 10px; }
+  .s3-pedals .s3-halt-b { padding: 6px 8px; font-size: 10px; }
+}
+@media (max-width: 640px) {
+  .s3-pedals { flex-wrap: wrap; row-gap: 6px; }
+  .s3-mid { order: -1; flex: 1 0 100%; flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 5px; }
+  .s3-row { flex-wrap: nowrap; gap: 5px; }
+}
+
+/* Aussicht: gehen, Drohne, Höhe */
+.s3-ausbar { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); display: flex; gap: 6px; align-items: center; pointer-events: auto; background: var(--s3-panel); backdrop-filter: blur(6px); border-radius: 99px; padding: 5px 8px; }
+.s3-ausbar button { font: 600 12px/1 system-ui, sans-serif; color: #fff; background: transparent; border: 1px solid rgba(255,255,255,.35); border-radius: 99px; padding: 7px 11px; cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none; }
+.s3-ausbar button[aria-pressed="true"] { background: var(--s3-accent); color: #111; border-color: transparent; }
+.s3-hoehe { font-size: 11px; opacity: .85; white-space: nowrap; }
+.s3-hoehe:empty { display: none; }
+.s3-stage:has(.s3-ausbar:not([hidden])) .s3-hud { display: none; }
+@media (max-width: 640px) { .s3-ausbar { top: 6px; padding: 4px 6px; gap: 4px; } .s3-ausbar button { padding: 6px 8px; font-size: 11px; } }
+.s3-ausbar button { white-space: nowrap; }
+.s3-stage:has(.s3-ausbar:not([hidden])) .s3-speedo, .s3-stage:has(.s3-ausbar:not([hidden])) .s3-row, .s3-stage:has(.s3-ausbar:not([hidden])) .s3-keys { display: none; }

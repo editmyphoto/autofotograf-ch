@@ -8,7 +8,7 @@
            datum: 'YYYY-MM-DD', farbe: '#ffb000', titel, untertitel, sponsor, modus: 'film'|'verfolger'|'drohne'|'hoch',
            onHalt(halt|null), onTick(state) } */
 import * as THREE from './three.module.js';
-import { Erde, Gelaende } from './kacheln.js';
+import { Erde, Gelaende, SNOW } from './kacheln.js';
 
 const D2R = Math.PI / 180, R2D = 180 / Math.PI;
 const MOBILE = matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 900;
@@ -224,7 +224,7 @@ export async function mountStrecke(root, opts = {}) {
     x.textAlign = 'left'; x.fillStyle = 'rgba(127,127,127,1)'; x.fillText(`${fmt(Math.round(mx))} m`, 4, 22); x.fillText(`${fmt(Math.round(mn))} m`, 4, H - 2);
     x.textAlign = 'right'; x.fillText(`${fmt(R.data.km)} km`, W - 4, H - 2);
   }
-  profile.addEventListener('click', e => { const r = profile.getBoundingClientRect(); api.seek(ttOfS((e.clientX - r.left) / r.width * R.L), true); });
+  profile.addEventListener('click', e => { const r = profile.getBoundingClientRect(), sm = (e.clientX - r.left) / r.width * R.L; if (S.drive) S.drive.jump(sm); else api.seek(ttOfS(sm), true); });
   tIn.addEventListener('input', () => { seekTT(tIn.value / 1000); });
   playB.addEventListener('click', () => S.playing ? api.pause() : api.play());
   modeSel.addEventListener('change', () => { if (S.drive) S.drive.view(modeSel.value); else S.mode = modeSel.value; });
@@ -241,8 +241,8 @@ export async function mountStrecke(root, opts = {}) {
     sunL.position.copy(sc).addScaledVector(dir, 5000); sunL.target.position.copy(sc); sunL.target.updateMatrixWorld();
     S.sunDir = dir;
     const day = clamp((so.alt + 2) / 10, 0, 1), warm = clamp(1 - so.alt / 18, 0, 1);
-    sunL.intensity = 2.1 * day * (S.drive ? S.drive.sunVis * 1.35 : 1); sunL.color.setRGB(1, lerp(0.96, 0.74, warm), lerp(0.9, 0.5, warm));
-    hemi.intensity = lerp(0.35, 1.0, day) * (S.drive ? lerp(1, 0.6, S.drive.sunVis) : 1);
+    sunL.intensity = 2.1 * day * (S.drive ? S.drive.sunVis * 1.35 * (1 - (S.drive.tun || 0)) : 1); sunL.color.setRGB(1, lerp(0.96, 0.74, warm), lerp(0.9, 0.5, warm));
+    hemi.intensity = lerp(0.35, 1.0, day) * (S.drive ? lerp(1, 0.6, S.drive.sunVis) * lerp(1, 0.16, S.drive.tun || 0) : 1);
     skyU.sunDir.value.copy(dir); skyU.up.value.copy(u);
     skyU.top.value.setRGB(lerp(0.08, 0.36, day), lerp(0.1, 0.58, day), lerp(0.22, 0.81, day));
     skyU.hor.value.setRGB(lerp(0.35, lerp(0.78, 0.96, warm * day), day), lerp(0.36, lerp(0.84, 0.78, warm * day), day), lerp(0.45, lerp(0.89, 0.66, warm * day), day));
@@ -289,6 +289,7 @@ export async function mountStrecke(root, opts = {}) {
     // nie unter das Gelände
     const g2 = ground(S.camP); if (g2 && g2.cam < g2.h + 25) S.camP.addScaledVector(R.UP[idxAt(S.s)[0]], g2.h + 25 - g2.cam);
     camera.position.copy(S.camP); camera.up.copy(R.UP[idxAt(S.s)[0]]); camera.lookAt(S.camL);
+    S.shot = sh.mode;
     if (S.halt !== sh.nearHalt) { S.halt = sh.nearHalt || null; showHalt(S.halt); O.onHalt?.(S.halt); }
     return sh;
   }
@@ -303,7 +304,9 @@ export async function mountStrecke(root, opts = {}) {
   function updateLabels() {
     const W = glHost.clientWidth, H = glHost.clientHeight;
     for (const h of R.data.halte) {
-      _p.copy(h.P).project(camera); const vis = _p.z < 1 && Math.abs(_p.x) < 1.1 && Math.abs(_p.y) < 1.1 && camera.position.distanceTo(h.P) < 60000;
+      // Schilder erst kurz vorher zeigen (beim Fahren 1,2 km voraus, im Flug 2,5 km um die Stelle), in der Übersicht alle
+      const ds = h.i * R.data.step - S.s, nah = S.drive ? ds > -80 && ds < 1200 : S.shot === 'uebersicht' || Math.abs(ds) < 2500;
+      _p.copy(h.P).project(camera); const vis = nah && _p.z < 1 && Math.abs(_p.x) < 1.1 && Math.abs(_p.y) < 1.1 && camera.position.distanceTo(h.P) < 60000;
       h.el.style.display = vis ? '' : 'none';
       if (vis) h.el.style.transform = `translate(${(_p.x + 1) / 2 * W}px, ${(1 - _p.y) / 2 * H}px)`;
     }
@@ -314,7 +317,7 @@ export async function mountStrecke(root, opts = {}) {
   }
   function updateHud() {
     const st = stats();
-    $('.s3-stats').innerHTML = `<span><b>${st.km.toFixed(1)}</b> km</span><span><b>${fmt(Math.round(st.h))}</b> m ü. M.</span><span><b>${st.g >= 0 ? '+' : ''}${st.g.toFixed(0)}</b> %</span><span><b>${st.uhr}</b> Uhr</span>${st.next ? `<span class="s3-next">${ICON[st.next.art] || ''} ${st.next.name} in ${st.nextKm.toFixed(1)} km</span>` : ''}`;
+    $('.s3-stats').innerHTML = `<span><b>${st.km.toFixed(1)}</b> km</span><span><b>${fmt(Math.round(st.h))}</b> m ü. M.</span><span><b>${st.g >= 0 ? '+' : ''}${st.g.toFixed(0)}</b> %</span><span><b>${st.uhr}</b> Uhr</span>${st.next && st.nextKm < 5 ? `<span class="s3-next">${ICON[st.next.art] || ''} ${st.next.name} in ${st.nextKm.toFixed(1)} km</span>` : ''}`;
     tIn.value = Math.round(S.tt * 1000);
   }
 
@@ -407,13 +410,22 @@ export async function mountStrecke(root, opts = {}) {
     renderer.setPixelRatio(Math.min(devicePixelRatio, MOBILE ? 1.5 : 2)); resize(true);
   }
 
+  /* Jahreszeit: Schneegrenze nach Datum (Mitte Januar 700 m … Mitte August 3200 m), wie bei den Bahnfahrten */
+  const SNOW_LINE = [700, 800, 1200, 1700, 2200, 2700, 3100, 3200, 3000, 2400, 1500, 900];
+  function season() {
+    const d = new Date(`${O.datum}T12:00:00Z`); if (isNaN(d)) return;
+    const m = ((d - Date.UTC(d.getUTCFullYear(), 0, 1)) / 864e5 - 14.5) / 30.44, i = Math.floor(m), f = m - i;
+    SNOW.line.value = SNOW_LINE[((i % 12) + 12) % 12] * (1 - f) + SNOW_LINE[(((i + 1) % 12) + 12) % 12] * f;
+    S.drive?.season?.(O.datum);
+  }
+  season();
   const api = {
     setRoute, get route() { return R; }, get drive() { return S.drive; }, renderer, camera, scene, get terrain() { return terrain; },
     play() { if (S.tt >= 1) { seekTT(0); filmT = 0; } S.playing = true; playB.textContent = '❚❚'; },
     pause() { S.playing = false; playB.textContent = '▶'; },
     seek(tt, toHalt) { seekTT(tt); if (toHalt) filmT = 0; },
     setMode(m) { S.mode = m; modeSel.value = m; },
-    setTime(datum, start) { if (datum) O.datum = datum; if (start) O.start = start; },
+    setTime(datum, start, neu) { if (datum) O.datum = datum; if (start) O.start = start; if (neu && S.drive) S.drive.t = 0; season(); },
     set(o) { Object.assign(O, o); if (R && (o.titel || o.untertitel)) $('.s3-title').innerHTML = `<b>${O.titel || R.data.name}</b><span>${O.untertitel || ''}</span>`; },
     /** Selbst fahren (lädt das Fahr-Modul erst bei Bedarf) */
     async fahren(on = true) {
@@ -421,7 +433,7 @@ export async function mountStrecke(root, opts = {}) {
       if (!R) return;
       api.pause(); driveB.disabled = true; driveB.textContent = 'Lädt …';
       try {
-        const { startFahren } = await import('./fahren3d.js?v=16');
+        const { startFahren } = await import('./fahren3d.js?v=23');
         S.drive = await startFahren({ THREE, scene, camera, renderer, erde, get terrain() { return terrain; }, R, S, O, root, sunL, posAt, idxAt, hAt });
         for (const m of lineMeshes) m.visible = false; marker.visible = false;
         driveB.textContent = '✕ Beenden';

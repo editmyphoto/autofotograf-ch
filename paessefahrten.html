@@ -4,13 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Pässefahrten 3D — 20 Schweizer Pässe selbst fahren | autofotograf.ch</title>
-  <meta name="description" content="Julier, Albula, Flüela, Ofen, Bernina, Gotthard, Furka, Grimsel, Susten und weitere Pässe als 3D-Fahrt über echtes Gelände – mit Fotohalten und der Uhrzeit, wann dort das Licht stimmt. Für Clubausfahrten, Rallyes und Auto-Events in Graubünden.">
+  <meta name="description" content="Julier, Albula, Flüela, Ofen, Bernina, Gotthard, Furka, Grimsel, Susten und weitere Pässe als 3D-Fahrt über echtes Gelände: selbst lenken, mit Verkehr, Tunnels und echtem Sonnenstand. Für Clubausfahrten, Rallyes und Auto-Events.">
   <link rel="canonical" href="https://www.autofotograf.ch/paessefahrten.html">
   <meta name="robots" content="index, follow">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="autofotograf.ch">
   <meta property="og:title" content="Pässefahrten 3D — 20 Schweizer Pässe">
-  <meta property="og:description" content="Die Route kennen, bevor der Motor läuft: Bündner Pässe in 3D, mit Fotohalten und bestem Licht.">
+  <meta property="og:description" content="Die Route kennen, bevor der Motor läuft: 20 Schweizer Pässe in 3D zum Selberfahren.">
   <meta property="og:url" content="https://www.autofotograf.ch/paessefahrten.html">
   <meta property="og:image" content="https://www.autofotograf.ch/assets/img/autofotograf-graubuenden-porsche-passstrasse.jpg">
   <meta property="og:locale" content="de_CH">
@@ -20,8 +20,8 @@
   <link rel="preload" href="assets/fonts/manrope-normal-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="assets/fonts.css">
   <link rel="stylesheet" href="assets/styles.css">
-  <link rel="stylesheet" href="assets/3d/strecke3d.css?v=6">
-  <link rel="stylesheet" href="assets/paesse.css?v=4">
+  <link rel="stylesheet" href="assets/3d/strecke3d.css?v=10">
+  <link rel="stylesheet" href="assets/paesse.css?v=5">
   <script defer src="/assets/stats.js"></script>
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
@@ -45,7 +45,7 @@
       <div class="wrap">
         <p class="eyebrow">Pässefahrten in 3D · Graubünden</p>
         <h1>Die Route kennen, bevor der Motor läuft.</h1>
-        <p class="pf-lede">Alle bekannten Bündner Pässe und die wichtigsten der Schweiz zum Selberfahren oder als Flug über echtes Gelände – mit den Fotohalten und der Uhrzeit, wann dort das Licht stimmt. So plane ich Shootings. Und so können Clubs, Rallyes und Händler ihre nächste Ausfahrt zeigen, bevor jemand den Schlüssel dreht.</p>
+        <p class="pf-lede">Alle bekannten Bündner Pässe und die wichtigsten der Schweiz zum Selberfahren oder als Flug über echtes Gelände – mit Verkehr, Tunnels und dem echten Sonnenstand zu jeder Tages- und Jahreszeit. So plane ich Shootings. Und so können Clubs, Rallyes und Händler ihre nächste Ausfahrt zeigen, bevor jemand den Schlüssel dreht.</p>
       </div>
     </header>
 
@@ -74,14 +74,12 @@
         </div>
 
         <div class="pf-plan-row">
-          <label for="pfMonth">Monat der Ausfahrt</label>
-          <select id="pfMonth"></select>
-          <p class="pf-plan" id="pfPlan"></p>
+          <label for="pfDate">Datum</label>
+          <input type="date" id="pfDate">
+          <label for="pfTime">Uhrzeit</label>
+          <input type="time" id="pfTime" step="300">
+          <p class="pf-plan">Sonne und Schatten stimmen für diesen Tag und diese Uhrzeit. Auf das Höhenprofil tippen, um an eine andere Stelle zu springen.</p>
         </div>
-
-        <h2 class="pf-h2">Fotohalte und Licht</h2>
-        <div class="pf-stops" id="pfStops"></div>
-        <p class="pf-small">Lichtzeiten jeweils am 15. des Monats, gerechnet mit dem Sonnenstand und den Bergen rundherum bis 150 km. Wolken kann ich leider nicht vorausrechnen. Passstrassen vor der Fahrt prüfen: Wintersperren und Bauarbeiten ändern sich.</p>
       </div>
     </section>
 
@@ -98,37 +96,6 @@
           <p class="eyebrow">Julierpass · 15. September · ab 18:20 Uhr</p>
           <h2 id="pf-film-h">Elf Kilometer Abendlicht in einer halben Minute.</h2>
           <p>So sieht eine Ausfahrt aus, bevor sie stattfindet: die echte Strasse, das echte Gelände und die Sonne genau dort, wo sie an diesem Abend stehen wird. Nur den Motor hört man noch nicht.</p>
-        </div>
-      </div>
-    </section>
-
-    <section class="pf-offer">
-      <div class="wrap">
-        <div class="section-head">
-          <p class="eyebrow">Für Clubs, Rallyes und Händler</p>
-          <h2>Eure Ausfahrt, zweimal erlebt.</h2>
-          <p class="lede">Einmal vorher in 3D, zum Vorfreuen und Planen. Einmal am Tag selbst, mit der Kamera an der richtigen Kehre.</p>
-        </div>
-        <div class="process-list">
-          <div class="process-item">
-            <span class="num">01</span>
-            <div><h3>Routenfilm für die Einladung</h3><p class="d">Eure Strecke als kurzer 3D-Flug mit Logo, Halten und Höhenprofil. Passt in die Einladung, auf die Website und auf Social Media.</p></div>
-            <span class="process-visual">3D · 1920 × 1080</span>
-          </div>
-          <div class="process-item">
-            <span class="num">02</span>
-            <div><h3>Fotohalte mit Lichtplanung</h3><p class="d">Ich suche die Kehren und Aussichtspunkte und rechne aus, wann dort das Licht stimmt. Daraus entsteht der Zeitplan für den Tag.</p></div>
-            <span class="process-visual">Sonne · Berge · Uhrzeit</span>
-          </div>
-          <div class="process-item">
-            <span class="num">03</span>
-            <div><h3>Fotos und Film am Tag selbst</h3><p class="d">Ich stehe dort, wo die Autos am besten aussehen. Danach gibt es für alle Teilnehmenden Bilder ihres eigenen Autos.</p></div>
-            <span class="process-visual">Fotografie · Film</span>
-          </div>
-        </div>
-        <div class="pf-cta">
-          <a class="btn btn-solid" href="index.html#kontakt" data-track="Pässe 3D Anfrage">Ausfahrt anfragen</a>
-          <p>Auch für eigene Strecken ausserhalb dieser drei Pässe – einfach Start und Ziel schicken.</p>
         </div>
       </div>
     </section>
@@ -153,6 +120,6 @@
       </div>
     </div>
   </footer>
-  <script type="module" src="assets/paesse.js?v=16"></script>
+  <script type="module" src="assets/paesse.js?v=24"></script>
 </body>
 </html>
