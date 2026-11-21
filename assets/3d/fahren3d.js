@@ -27,21 +27,29 @@ function makeCar(color) {
     geo.translate(0, 0, -(w - 2 * bevel) / 2).rotateY(Math.PI / 2); // Profil-x → Modell -z (vorne)
     geo.computeVertexNormals(); return new THREE.Mesh(geo, mat);
   };
-  g.add(ext([[2.2, 0.3], [2.3, 0.52], [2.12, 0.68], [1.1, 0.8], [-1.2, 0.86], [-2.0, 0.9], [-2.24, 0.82], [-2.27, 0.46], [-2.18, 0.3]], 1.84, 0.12, paint));
-  g.add(ext([[0.9, 0.82], [0.12, 1.24], [-0.85, 1.27], [-1.78, 0.9], [-1.7, 0.84]], 1.5, 0.08, glass));
-  g.add(ext([[0.1, 1.255], [-0.84, 1.285], [-0.82, 1.32], [0.08, 1.295]], 1.36, 0.05, paint));
-  const sill = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.12, 3.2), dark); sill.position.set(0, 0.32, 0); g.add(sill);
-  // Räder
-  const wg = new THREE.CylinderGeometry(0.34, 0.34, 0.26, 20).rotateZ(Math.PI / 2), rim = new THREE.CylinderGeometry(0.22, 0.22, 0.27, 12).rotateZ(Math.PI / 2);
-  g.userData.wheels = [];
-  for (const [x, z] of [[-0.86, -1.42], [0.86, -1.42], [-0.86, 1.38], [0.86, 1.38]]) {
-    const w = new THREE.Group(); w.add(new THREE.Mesh(wg, dark), new THREE.Mesh(rim, chrome)); w.position.set(x, 0.34, z); g.add(w); g.userData.wheels.push(w);
+  // Aufbau (neigt sich in Kurven und nickt beim Bremsen), Räder bleiben am Boden
+  const ch = new THREE.Group(); g.add(ch); g.userData.chassis = ch;
+  ch.add(ext([[2.2, 0.3], [2.3, 0.52], [2.12, 0.68], [1.1, 0.8], [-1.2, 0.86], [-2.0, 0.9], [-2.24, 0.82], [-2.27, 0.46], [-2.18, 0.3]], 1.84, 0.12, paint));
+  ch.add(ext([[0.9, 0.82], [0.12, 1.24], [-0.85, 1.27], [-1.78, 0.9], [-1.7, 0.84]], 1.5, 0.08, glass));
+  ch.add(ext([[0.1, 1.255], [-0.84, 1.285], [-0.82, 1.32], [0.08, 1.295]], 1.36, 0.05, paint));
+  const sill = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.12, 3.2), dark); sill.position.set(0, 0.32, 0); ch.add(sill);
+  // Räder: Reifen, Felge mit fünf Speichen (damit man die Drehung sieht), vorne lenkbar
+  const RW = 0.34, tire = new THREE.CylinderGeometry(RW, RW, 0.25, 28).rotateZ(Math.PI / 2), wall = new THREE.CylinderGeometry(0.235, 0.235, 0.255, 24).rotateZ(Math.PI / 2);
+  const hub = new THREE.CylinderGeometry(0.06, 0.06, 0.285, 12).rotateZ(Math.PI / 2), spoke = new THREE.BoxGeometry(0.275, 0.2, 0.055).translate(0, 0.115, 0), ring = new THREE.TorusGeometry(0.225, 0.018, 6, 28).rotateY(Math.PI / 2);
+  const rimDark = new THREE.MeshStandardMaterial({ color: 0x2a2d31, metalness: 0.3, roughness: 0.55 }), alu = new THREE.MeshStandardMaterial({ color: 0xcfd2d6, metalness: 0.35, roughness: 0.35 });
+  g.userData.wheels = []; g.userData.steer = [];
+  for (const [x, z, front] of [[-0.86, -1.42, 1], [0.86, -1.42, 1], [-0.86, 1.38, 0], [0.86, 1.38, 0]]) {
+    const st = new THREE.Group(), w = new THREE.Group(); st.position.set(x, RW, z); st.add(w); g.add(st);
+    w.add(new THREE.Mesh(tire, dark), new THREE.Mesh(wall, rimDark), new THREE.Mesh(hub, alu));
+    for (let k = 0; k < 5; k++) { const sp = new THREE.Mesh(spoke, alu); sp.rotation.x = k * Math.PI * 2 / 5; w.add(sp); }
+    for (const sx of [-0.128, 0.128]) { const r = new THREE.Mesh(ring, alu); r.position.x = sx; w.add(r); }
+    g.userData.wheels.push(w); if (front) g.userData.steer.push(st);
   }
   // Lichter
   const hl = new THREE.MeshBasicMaterial({ color: 0xfff6e0 }), tl = new THREE.MeshBasicMaterial({ color: 0xc0201a });
   for (const x of [-0.62, 0.62]) {
-    const h = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.1, 0.05), hl); h.position.set(x, 0.62, -2.31); g.add(h);
-    const t = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.09, 0.05), tl); t.position.set(x, 0.74, 2.29); g.add(t);
+    const h = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.1, 0.05), hl); h.position.set(x, 0.62, -2.31); ch.add(h);
+    const t = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.09, 0.05), tl); t.position.set(x, 0.74, 2.29); ch.add(t);
   }
   g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   return g;
@@ -161,6 +169,12 @@ export async function startFahren(ctx) {
     const a = dirAt(s - 15, new THREE.Vector3()), b = dirAt(s + 15, new THREE.Vector3());
     return Math.acos(clamp(a.dot(b), -1, 1)) / 30;
   }
+  const _c1 = new THREE.Vector3(), _c2 = new THREE.Vector3(), _c3 = new THREE.Vector3();
+  /** Krümmung mit Vorzeichen (+ = Linkskurve), über ±w m */
+  function curveSigned(s, w = 8) {
+    const a = dirAt(s - w, _c1), b = dirAt(s + w, _c2), [i] = at(s);
+    return Math.sign(_c3.crossVectors(a, b).dot(UP[i])) * Math.acos(clamp(a.dot(b), -1, 1)) / (2 * w);
+  }
 
   /* Strasse als Fläche (Fenster um das Auto, wird nachgeführt) */
   const roadMat = roadMaterial(); let road = null, roadFrom = -1, roadZ = 0;
@@ -251,7 +265,17 @@ export async function startFahren(ctx) {
           const x2 = (line[k + 1][1] - lo) * mx, z2 = -(line[k + 1][0] - la) * my, dx = x2 - x, dz = z2 - z, len = Math.hypot(dx, dz) || 1, nx = -dz / len, nz = dx / len;
           for (const t of [0, 0.5]) for (const o of [-M, -M / 2, 0, M / 2, M]) strip.push(x + dx * t + nx * o, z + dz * t + nz * o); } }
       c.parts = clearRoad(c.parts, strip);
-      if (c.parts.length) { const m = buildingMesh(c.parts, 0, false, gAt); if (m) { m.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; } }); grp.add(m); } }
+      if (c.parts.length) {
+        // Fensterraster wie auf der Makler-Seite (Engine: withFacade). Hausfuss nur aus feinem Gelände, sonst Unterkante des Hauses.
+        const gFine = (x, z) => { const h = terrain.heightAt(la - z / my, lo + x / mx); return h && h.z >= 15 ? h.h : null; };
+        const m = buildingMesh(c.parts, 0, false, gFine);
+        if (m) {
+          // Der Fassaden-Shader rechnet mit Welt-Koordinaten, die Hausfuss-Höhe steht aber im Feld-System: umrechnen
+          const fi = m.geometry.attributes.facInfo, po = m.geometry.attributes.position, e = grp.matrix.elements;
+          if (fi) { for (let k = 0; k < fi.count; k++) { const b = fi.getY(k); if (b < -9e5) continue; const x = po.getX(k), y = po.getY(k), z = po.getZ(k); fi.setY(k, e[1] * x + e[5] * y + e[9] * z + e[13] - (y - b)); } fi.needsUpdate = true; }
+          m.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; } }); grp.add(m);
+        }
+      }
       const tgrid = new Set(); for (let k = 0; k < strip.length; k += 2) tgrid.add(Math.round(strip[k] / 3) + ',' + Math.round(strip[k + 1] / 3));
       const trees = (MOBILE ? c.trees.filter((_, k) => k % 2 === 0) : c.trees).filter(t => !tgrid.has(Math.round(t.x / 3) + ',' + Math.round(t.z / 3)));
       const base = new Map(trees.map(t => [t.x + ',' + t.z, t.y]));
@@ -287,7 +311,7 @@ export async function startFahren(ctx) {
 
   /* Auto, Fahrzustand */
   const car = makeCar(O.autofarbe || 0xb8b8bc); scene.add(car);
-  const Fz = { s: clamp(S.s, 25, L - 10), v: 0, gas: 0, brake: 0, auto: false, view: 'hinten', look: 0, lookV: 0, warnT: 0, halt: false, aus: false, pitch: 0 };
+  const Fz = { s: clamp(S.s, 25, L - 10), v: 0, gas: 0, brake: 0, auto: false, view: 'hinten', look: 0, lookV: 0, warnT: 0, halt: false, aus: false, pitch: 0, steer: 0, roll: 0, nick: 0, drift: 0, acc: 0 };
   D.t = 0; D.focus = new THREE.Vector3();
   camera.near = 0.1; camera.updateProjectionMatrix();
 
@@ -412,9 +436,16 @@ export async function startFahren(ctx) {
     if (Fz.auto) { const tgt = Math.min(vCurve, 22); a = clamp((tgt - Fz.v) * 1.2, -6, 2.2); }
     if (Fz.halt || Fz.aus) { a = -6; if (Fz.halt && Fz.v < 0.2) { Fz.halt = false; aussichtStart(); } }
     if (!Fz.gas && !Fz.auto && Fz.v < 0.3 && !Fz.brake) a = Math.min(a, 0);
-    Fz.v = clamp(Fz.v + a * dt, 0, 33);
-    const lat = Fz.v * Fz.v * curvature(Fz.s);
-    if (lat > 5.2) { Fz.warnT = 1.2; Fz.v = Math.max(0, Fz.v - 4 * dt); }
+    Fz.v = clamp(Fz.v + a * dt, 0, 33); Fz.acc = a;
+    // Querbeschleunigung (+ = Linkskurve). Ab ca. 5 m/s² untersteuert das Auto: es drängt nach aussen und verliert Tempo.
+    const kS = curveSigned(Fz.s + 1.4, 8), latS = Fz.v * Fz.v * kS, lat = Math.abs(latS);
+    if (lat > 5.2) { Fz.warnT = 1.2; Fz.v = Math.max(0, Fz.v - (2.5 + (lat - 5.2) * 1.5) * dt); }
+    const driftT = -Math.sign(latS) * clamp((lat - 4.2) * 0.55, 0, 1.5) + clamp(latS * 0.05, -0.2, 0.2); // nach aussen; bei wenig Tempo leicht die Kurve schneiden
+    Fz.drift = lerp(Fz.drift, Fz.v > 1 ? driftT : 0, 1 - Math.exp(-dt * 2.2));
+    // Lenkeinschlag der Vorderräder (Radstand 2,8 m), Wanken und Nicken des Aufbaus
+    Fz.steer = lerp(Fz.steer, clamp(Math.atan(2.8 * curveSigned(Fz.s + 2.2, 5)) * 1.15, -0.62, 0.62), 1 - Math.exp(-dt * 9));
+    Fz.roll = lerp(Fz.roll, clamp(-latS * 0.011, -0.085, 0.085), 1 - Math.exp(-dt * 5));
+    Fz.nick = lerp(Fz.nick, clamp(a * 0.0075, -0.055, 0.03), 1 - Math.exp(-dt * 6));
     Fz.warnT -= dt; warnEl.hidden = Fz.warnT <= 0;
     Fz.s = clamp(Fz.s + Fz.v * dt, 0, L - 0.1); if (Fz.s >= L - 0.2) { Fz.v = 0; setAuto(false); }
     D.t += dt * (Fz.v > 0.1 ? 1 : 0.2);
@@ -424,10 +455,13 @@ export async function startFahren(ctx) {
     roadT -= dt;
     if (roadFrom < 0 || Math.abs(Fz.s - roadFrom) > WIN * 0.35 || (roadT <= 0 && terrain.loadedCount !== roadZ)) { buildRoad(Fz.s); roadT = 2.5; }
     // Auto setzen (rechte Spur), Ausrichtung nach Fahrtrichtung und Steigung
-    point(Fz.s, LANE, car.position); const sb = clamp(Fz.s - 2.2, 0, L - 4.4), ahead = point(sb + 4.4, LANE, _p), back = point(sb, LANE, _q);
+    const lane = LANE - Fz.drift; // drift + = nach links (zur Strassenmitte)
+    point(Fz.s, lane, car.position); const sb = clamp(Fz.s - 2.2, 0, L - 4.4), ahead = point(sb + 4.4, lane, _p), back = point(sb, lane, _q);
     const [ci] = at(Fz.s); car.up.copy(UP[ci]); car.lookAt(_d.copy(car.position).add(back).sub(ahead)); // Modell schaut nach -z: Ziel hinter dem Auto, parallel zur Strasse
     car.position.addScaledVector(UP[ci], 0.0);
     for (const w of car.userData.wheels) w.rotation.x -= Fz.v * dt / 0.34;
+    for (const st of car.userData.steer) st.rotation.y = Fz.steer;
+    car.userData.chassis.rotation.set(Fz.nick, 0, Fz.roll); car.userData.chassis.position.y = -Math.abs(Fz.roll) * 0.25;
     car.visible = Fz.view !== 'cockpit';
     D.focus.copy(car.position);
     // Kamera
@@ -452,7 +486,8 @@ export async function startFahren(ctx) {
     if (first) { camP.copy(cp); camL.copy(cl); first = false; } else { camP.lerp(cp, stiff); camL.lerp(cl, Fz.view === 'cockpit' ? 1 : 1 - Math.exp(-dt * 8)); }
     // nicht unter das Gelände
     const g = {}; erde.toGeo(camP, g); const th = terrain.heightAt(g.lat, g.lon); if (th && g.h < th.h + 1.2 && Fz.view !== 'cockpit') camP.addScaledVector(up, th.h + 1.2 - g.h);
-    camera.position.copy(camP); camera.up.copy(up); camera.lookAt(camL);
+    camera.position.copy(camP); camera.up.copy(up); if (Fz.view === 'cockpit') camera.up.addScaledVector(right, -Math.sin(Fz.roll) * 0.8); // im Cockpit neigt sich der Horizont mit
+    camera.lookAt(camL);
     terrainShadows(); mountainShadow(dt, car.position);
     updateCity(Fz.s);
   };
