@@ -71,9 +71,22 @@ function decodeQM(buf) {
   const edges = [];
   for (let k = 0; k < 4; k++) { const m = dv.getUint32(o, true); o += 4; const e = new Uint32Array(m); for (let i = 0; i < m; i++) e[i] = get(); edges.push(e); }
   const h = new Float32Array(n); for (let i = 0; i < n; i++) h[i] = minH + hq[i] / 32767 * (maxH - minH);
-  return { n, u, v, h, idx, edges, minH, maxH }; // edges: West, Süd, Ost, Nord
+  // Erweiterungen: 4 = Metadaten mit «available» (welche Unterkacheln es gibt; in den Kacheln der Stufen 0, 10, 20)
+  let avail = null;
+  while (o + 5 <= buf.byteLength) {
+    const id = dv.getUint8(o), len = dv.getUint32(o + 1, true);
+    if (id === 4) { try { const jl = dv.getUint32(o + 5, true); avail = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, o + 9, jl))).available || null; } catch { /* ohne Angaben weiter */ } }
+    o += 5 + len;
+  }
+  return { n, u, v, h, idx, edges, minH, maxH, avail }; // edges: West, Süd, Ost, Nord
 }
 
+// SWISSIMAGE gibt es grob von 4° bis 13.5° Ost und 44° bis 48.5° Nord; ausserhalb liefert der Dienst Fehler 400
+function imgCovered(Z, tx, ty) {
+  const n = 2 ** Z, w = tx / n * 360 - 180, e = (tx + 1) / n * 360 - 180;
+  const lat = y => Math.atan(Math.sinh(Math.PI * (1 - 2 * y / n))) / D2R, no = lat(ty), so = lat(ty + 1);
+  return e > 4 && w < 13.5 && no > 44 && so < 48.5;
+}
 const mercY = lat => { const s = Math.sin(lat * D2R); return 0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI); }; // 0 (Nord) … 1 (Süd)
 
 /* ---------- Schnee (Jahreszeit): Schneegrenze in m ü. M., nur auf flacheren Hängen ---------- */
@@ -128,13 +141,17 @@ export class Gelaende {
     // Wurzeln: Stufe 5 um die Schweiz (je ~5.6°), darüber hinaus gibt es keine Daten
     this.roots = [];
     for (let x = 32; x <= 34; x++) for (let y = 23; y <= 24; y++) this.roots.push(new Node(5, x, y, null));
-    this.ready = fetch(TERRAIN + 'layer.json').then(r => r.json()).then(j => { this.tpl = TERRAIN + j.tiles[0].replace('{version}', j.version); }).catch(() => { this.tpl = TERRAIN + '20250101/{z}/{x}/{y}.terrain'; });
+    this.ready = fetch(TERRAIN + 'layer.json').then(r => r.json()).then(j => { this.tpl = TERRAIN + j.tiles[0].replace('{version}', j.version); }).catch(() => { this.tpl = TERRAIN + '20250101/{z}/{x}/{y}.terrain'; })
+      // Verfügbarkeit der Stufen 1–10 aus den beiden Wurzelkacheln: so werden fehlende Kacheln gar nicht erst angefragt (keine Fehler 403)
+      .then(() => Promise.all([0, 1].map(x => fetch(this.tpl.replace('{z}', 0).replace('{x}', x).replace('{y}', 0)).then(r => r.ok ? r.arrayBuffer() : null).then(b => b && decodeQM(b).avail).catch(() => null))))
+      .then(([a, b]) => { if (a || b) { this.avail0 = []; for (let i = 0; i < 10; i++) this.avail0.push([...(a?.[i] || []), ...(b?.[i] || [])]); } })
+      .catch(() => {}).then(() => { this.ok = true; });
     this._v = new THREE.Vector3(); this._g = {};
   }
 
   /** Jede Bildfolge aufrufen: wählt die Kacheln nach Abstand zur Kamera, lädt nach, gibt alte frei. */
   update(camera, focus) {
-    if (!this.tpl) return;
+    if (!this.ok) return;
     const f = ++this.frame, want = [], cam = camera.position, fr = this._frustum ||= new THREE.Frustum();
     fr.setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
     const dist = nd => Math.max(0, nd.center ? cam.distanceTo(nd.center) - nd.radius * 0.7 : 0);
@@ -180,7 +197,18 @@ export class Gelaende {
     nd.mesh = null; nd.data = null; nd.state = 0; this.loadedCount--;
   }
 
+  /** Gibt es Daten für diese Kachel? (Metadaten der Stufe 0 bzw. der Vorfahren-Kachel auf Stufe 10, 20) */
+  has(nd) {
+    const z = nd.z, base = Math.floor((z - 1) / 10) * 10;
+    let list;
+    if (base === 0) list = this.avail0?.[z - 1];
+    else { let a = nd; while (a && a.z > base) a = a.parent; if (!a?.avail) return true; list = a.avail[z - base - 1]; }
+    if (!list) return true;
+    return list.some(r => nd.x >= r.startX && nd.x <= r.endX && nd.y >= r.startY && nd.y <= r.endY);
+  }
+
   async load(nd) {
+    if (!this.has(nd)) { nd.state = 3; return; }
     nd.state = 1; this.busy++; this.requests++;
     try {
       const url = this.tpl.replace('{z}', nd.z).replace('{x}', nd.x).replace('{y}', nd.y);
@@ -190,6 +218,7 @@ export class Gelaende {
       const buf = await r.arrayBuffer(); this.bytes += buf.byteLength;
       const q = decodeQM(buf);
       const tex = await this.imagery(nd);
+      if (q.avail) nd.avail = q.avail;
       this.build(nd, q, tex);
       nd.state = 2; this.loadedCount++;
     } catch (e) { nd.state = 4; nd.retry = this.frame + 120; }
@@ -204,7 +233,7 @@ export class Gelaende {
     const c2 = cv.getContext('2d', { willReadFrequently: true }); c2.fillStyle = '#8b9478'; c2.fillRect(0, 0, T, T);
     const sx = T / (x1 - x0), sy = T / (y1 - y0), jobs = [];
     for (let tx = Math.floor(x0 / 256); tx <= Math.floor((x1 - 1e-6) / 256); tx++) for (let ty = Math.floor(y0 / 256); ty <= Math.floor((y1 - 1e-6) / 256); ty++)
-      jobs.push(loadImage(IMG(Z, tx, ty)).then(im => im && c2.drawImage(im, (tx * 256 - x0) * sx, (ty * 256 - y0) * sy, 256 * sx + 0.6, 256 * sy + 0.6)));
+      if (!imgCovered(Z, tx, ty)) continue; else jobs.push(loadImage(IMG(Z, tx, ty)).then(im => im && c2.drawImage(im, (tx * 256 - x0) * sx, (ty * 256 - y0) * sy, 256 * sx + 0.6, 256 * sy + 0.6)));
     await Promise.all(jobs);
     toneMap(c2, TONE);
     const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = this.anis;

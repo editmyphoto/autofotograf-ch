@@ -163,3 +163,4 @@ HTML-Struktur und alle Texte bleiben unverändert.
 ## Pässefahrten 3D (`paessefahrten.html`, ab 21.11.2026)
 - 3D-Fahrt über Julier, Albula, Flüela mit Fotohalten und Lichtzeiten. Code in `assets/paesse.js` / `assets/paesse.css`; 3D-Teil in `assets/3d/` wird **nicht hier bearbeitet**, sondern gebaut aus Sonnenstand 3D: `python3 ~/Claude/sonnenstand3d/ideen/tools/build_autofotograf.py`.
 - Lädt Gelände/Luftbild erst nach Klick direkt von swisstopo (CSP in `vercel.json` erlaubt `3d.geo.admin.ch` und `wmts.geo.admin.ch`; Abschnitt in `datenschutz.html`).
+- Seit 21.11. auch «Selbst fahren» (Auto, Gas/Bremse, Häuser/Bäume von swisstopo über `assets/3d/tiles3d.js` mit Draco-Decoder in `assets/3d/vendor/`). Dafür erlaubt die CSP zusätzlich `'wasm-unsafe-eval'` (script-src) und `worker-src 'self' blob:`.

@@ -125,7 +125,7 @@ export async function mountStrecke(root, opts = {}) {
     <div class="s3-cover"><div><b>Gelände und Luftbild laden …</b><span class="s3-prog"></span></div></div></div>
     <canvas class="s3-profile" height="90"></canvas>
     <div class="s3-bar"><button class="s3-play" aria-label="Abspielen">▶</button><input class="s3-t" type="range" min="0" max="1000" value="0" aria-label="Position auf der Strecke">
-      <select class="s3-mode" aria-label="Kamera"><option value="film">Film (automatisch)</option><option value="verfolger">Verfolger</option><option value="drohne">Drohne seitlich</option><option value="hoch">Von oben</option></select></div>`;
+      <button class="s3-drive" hidden>🚗 Selbst fahren</button><select class="s3-mode" aria-label="Kamera"><option value="film">Film (automatisch)</option><option value="verfolger">Verfolger</option><option value="drohne">Drohne seitlich</option><option value="hoch">Von oben</option></select></div>`;
   const $ = s => root.querySelector(s);
   const glHost = $('.s3-gl'), labels = $('.s3-labels'), cover = $('.s3-cover'), profile = $('.s3-profile'), tIn = $('.s3-t'), playB = $('.s3-play'), modeSel = $('.s3-mode');
   modeSel.value = O.modus;
@@ -154,6 +154,7 @@ export async function mountStrecke(root, opts = {}) {
   const S = { s: 0, tt: 0, playing: false, mode: O.modus, rec: null, loadedOnce: false, halt: null, camP: new THREE.Vector3(), camL: new THREE.Vector3(), first: true, last: performance.now() };
 
   function setRoute(data) {
+    if (S.drive) api.fahren(false);
     for (const m of lineMeshes) { scene.remove(m); m.geometry.dispose(); }
     lineMeshes.length = 0; labels.innerHTML = '';
     const pts = data.pts, n = pts.length;
@@ -220,18 +221,22 @@ export async function mountStrecke(root, opts = {}) {
   profile.addEventListener('click', e => { const r = profile.getBoundingClientRect(); api.seek(ttOfS((e.clientX - r.left) / r.width * R.L), true); });
   tIn.addEventListener('input', () => { seekTT(tIn.value / 1000); });
   playB.addEventListener('click', () => S.playing ? api.pause() : api.play());
-  modeSel.addEventListener('change', () => { S.mode = modeSel.value; });
+  modeSel.addEventListener('change', () => { if (S.drive) S.drive.view(modeSel.value); else S.mode = modeSel.value; });
+  const driveB = $('.s3-drive'); driveB.hidden = !O.fahren;
+  driveB.addEventListener('click', () => api.fahren(!S.drive));
 
   /* Sonne */
-  function timeMs() { return zuerichMs(O.datum, O.start) + S.s / (O.kmh / 3.6) * 1000; }
+  function timeMs() { return zuerichMs(O.datum, O.start) + (S.drive ? S.drive.t * 1000 : S.s / (O.kmh / 3.6) * 1000); }
   function updateSun() {
     const p = R.pts[Math.round(R.n / 2)], ms = timeMs(), so = sonne(ms, p[0], p[1]);
     const e = erde.east(p[0], p[1]), nn = erde.north(p[0], p[1]), u = erde.up(p[0], p[1]);
     const ca = Math.cos(so.alt * D2R), dir = new THREE.Vector3().addScaledVector(e, Math.sin(so.bearing * D2R) * ca).addScaledVector(nn, Math.cos(so.bearing * D2R) * ca).addScaledVector(u, Math.sin(Math.max(so.alt, -4) * D2R)).normalize();
-    sunL.position.copy(S.camL).addScaledVector(dir, 5000); sunL.target.position.copy(S.camL); sunL.target.updateMatrixWorld();
+    const sc = S.drive ? S.drive.focus : S.camL;
+    sunL.position.copy(sc).addScaledVector(dir, 5000); sunL.target.position.copy(sc); sunL.target.updateMatrixWorld();
+    S.sunDir = dir;
     const day = clamp((so.alt + 2) / 10, 0, 1), warm = clamp(1 - so.alt / 18, 0, 1);
-    sunL.intensity = 2.1 * day; sunL.color.setRGB(1, lerp(0.96, 0.74, warm), lerp(0.9, 0.5, warm));
-    hemi.intensity = lerp(0.35, 1.0, day);
+    sunL.intensity = 2.1 * day * (S.drive ? S.drive.sunVis * 1.35 : 1); sunL.color.setRGB(1, lerp(0.96, 0.74, warm), lerp(0.9, 0.5, warm));
+    hemi.intensity = lerp(0.35, 1.0, day) * (S.drive ? lerp(1, 0.6, S.drive.sunVis) : 1);
     skyU.sunDir.value.copy(dir); skyU.up.value.copy(u);
     skyU.top.value.setRGB(lerp(0.08, 0.36, day), lerp(0.1, 0.58, day), lerp(0.22, 0.81, day));
     skyU.hor.value.setRGB(lerp(0.35, lerp(0.78, 0.96, warm * day), day), lerp(0.36, lerp(0.84, 0.78, warm * day), day), lerp(0.45, lerp(0.89, 0.66, warm * day), day));
@@ -331,14 +336,16 @@ export async function mountStrecke(root, opts = {}) {
     if (!S.loadedOnce) $('.s3-prog').textContent = ` ${terrain.loadedCount} Kacheln`;
     const wait = S.rec && busy;
     if (S.rec) { if (wait && S.rec.mr.state === 'recording') S.rec.mr.pause(); else if (!wait && S.rec.mr.state === 'paused') S.rec.mr.resume(); }
-    if (S.playing && S.loadedOnce && !wait) {
-      const step = dt / O.dauer;
-      filmT += dt; seekTT(S.tt + step);
-      if (S.tt >= 1) { S.playing = false; playB.textContent = '▶'; if (S.rec) stopRec(); }
+    if (S.drive) S.drive.update(dt);
+    else {
+      if (S.playing && S.loadedOnce && !wait) {
+        const step = dt / O.dauer;
+        filmT += dt; seekTT(S.tt + step);
+        if (S.tt >= 1) { S.playing = false; playB.textContent = '▶'; if (S.rec) stopRec(); }
+      }
+      placeCamera(wait ? 0 : dt);
     }
-    const fdt = wait ? 0 : dt;
-    placeCamera(fdt);
-    terrain.update(camera, posAt(S.s, _b));
+    terrain.update(camera, S.drive ? S.drive.focus : posAt(S.s, _b));
     updateSun();
     posAt(S.s, marker.position); marker.scale.setScalar(camera.position.distanceTo(marker.position) * 0.0055);
     for (const m of lineMats) m.uniforms.prog.value = S.s;
@@ -354,6 +361,10 @@ export async function mountStrecke(root, opts = {}) {
   function composite() {
     const x = comp.getContext('2d'), st = stats(), W = 1920, H = 1080;
     x.drawImage(renderer.domElement, 0, 0, W, H);
+    if (O.sauber) { // nur Bild, ohne Einblendungen (z. B. Hintergrundvideo auf einer Website)
+      x.fillStyle = 'rgba(255,255,255,.6)'; x.font = '400 16px system-ui, sans-serif'; x.textAlign = 'right'; x.fillText('Gelände und Luftbild © swisstopo', W - 28, H - 18); x.textAlign = 'left';
+      return;
+    }
     const grd = x.createLinearGradient(0, 0, 0, 220); grd.addColorStop(0, 'rgba(0,0,0,.55)'); grd.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = grd; x.fillRect(0, 0, W, 220);
     x.fillStyle = '#fff'; x.font = '700 54px system-ui, sans-serif'; x.fillText(O.titel || R.data.name, 60, 96);
     x.font = '400 28px system-ui, sans-serif'; x.globalAlpha = 0.85; x.fillText(O.untertitel || `${fmt(R.data.km)} km · ${fmt(R.data.hoch)} m hinauf`, 60, 140); x.globalAlpha = 1;
@@ -376,7 +387,7 @@ export async function mountStrecke(root, opts = {}) {
     if (!type) throw new Error('Dieser Browser kann keine Videos aufnehmen.');
     renderer.setPixelRatio(1); renderer.setSize(1920, 1080, false); camera.aspect = 16 / 9; camera.updateProjectionMatrix();
     for (const m of lineMats) { m.uniforms.res.value.set(1920, 1080); m.uniforms.px.value *= 1.6; }
-    const mr = new MediaRecorder(comp.captureStream(30), { mimeType: type, videoBitsPerSecond: 16e6 }), chunks = [];
+    const mr = new MediaRecorder(comp.captureStream(30), { mimeType: type, videoBitsPerSecond: O.bitrate || 16e6 }), chunks = [];
     mr.ondataavailable = e => e.data.size && chunks.push(e.data);
     const done = new Promise(res => { mr.onstop = () => res(new Blob(chunks, { type: type.split(';')[0] })); });
     S.rec = { mr, done, type }; mr.start(500);
@@ -390,17 +401,29 @@ export async function mountStrecke(root, opts = {}) {
   }
 
   const api = {
-    setRoute, get route() { return R; }, renderer, camera, scene, get terrain() { return terrain; },
+    setRoute, get route() { return R; }, get drive() { return S.drive; }, renderer, camera, scene, get terrain() { return terrain; },
     play() { if (S.tt >= 1) { seekTT(0); filmT = 0; } S.playing = true; playB.textContent = '❚❚'; },
     pause() { S.playing = false; playB.textContent = '▶'; },
     seek(tt, toHalt) { seekTT(tt); if (toHalt) filmT = 0; },
     setMode(m) { S.mode = m; modeSel.value = m; },
     setTime(datum, start) { if (datum) O.datum = datum; if (start) O.start = start; },
     set(o) { Object.assign(O, o); if (R && (o.titel || o.untertitel)) $('.s3-title').innerHTML = `<b>${O.titel || R.data.name}</b><span>${O.untertitel || ''}</span>`; },
+    /** Selbst fahren (lädt das Fahr-Modul erst bei Bedarf) */
+    async fahren(on = true) {
+      if (!on) { S.drive?.stop(); S.drive = null; for (const m of lineMeshes) m.visible = true; marker.visible = true; driveB.textContent = '🚗 Selbst fahren'; return; }
+      if (!R) return;
+      api.pause(); driveB.disabled = true; driveB.textContent = 'Lädt …';
+      try {
+        const { startFahren } = await import('./fahren3d.js?v=7');
+        S.drive = await startFahren({ THREE, scene, camera, renderer, erde, get terrain() { return terrain; }, R, S, O, root, sunL, posAt, idxAt, hAt });
+        for (const m of lineMeshes) m.visible = false; marker.visible = false;
+        driveB.textContent = '✕ Beenden';
+      } finally { driveB.disabled = false; }
+    },
     record: startRec, stopRecording: stopRec, get filmbild() { return comp; },
     /** Für Tests im Hintergrund (ohne Bildwiederholung): n Bilder im Abstand dt (ms) rechnen */
     tick(n = 1, dt = 33) { for (let i = 0; i < n; i++) body(S.last + dt); },
-    state() { return R ? { tt: S.tt, s: S.s, mode: S.mode, playing: S.playing, loaded: S.loadedOnce, tiles: terrain.loadedCount, pending: terrain.pending, sun: S.sun, halt: S.halt?.name, rec: !!S.rec } : null; },
+    state() { return R ? { tt: S.tt, s: S.s, mode: S.mode, playing: S.playing, loaded: S.loadedOnce, tiles: terrain.loadedCount, pending: terrain.pending, sun: S.sun, halt: S.halt?.name, rec: !!S.rec, drive: S.drive?.state() } : null; },
   };
   if (O.strecke) setRoute(O.strecke);
   requestAnimationFrame(frame);

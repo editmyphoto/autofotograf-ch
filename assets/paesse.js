@@ -78,23 +78,40 @@ document.querySelector('.pf-tabs').addEventListener('click', e => { const b = e.
 sel.addEventListener('change', () => { month = +sel.value; F?.pause(); render(); });
 $('pfStops').addEventListener('click', e => {
   const b = e.target.closest('.pf-stop'); if (!b || !F) return;
-  const h = data.halte[+b.dataset.n]; F.seek(Math.min(0.999, h.i / (data.pts.length - 1)) * 0.999); F.setMode('drohne');
+  const h = data.halte[+b.dataset.n];
+  if (F.drive) { F.drive.control({ s: h.i * data.step, v: 0, auto: false }); }
+  else { F.seek(Math.min(0.999, h.i / (data.pts.length - 1)) * 0.999); F.setMode('drohne'); }
   $('pfStage').scrollIntoView({ behavior: 'smooth', block: 'center' });
 });
 
-$('pfStart').addEventListener('click', async () => {
-  const btn = $('pfStart'); btn.disabled = true; btn.textContent = 'Wird geladen …';
+async function start3d(drive) {
+  const btns = [$('pfStart'), $('pfDrive')]; for (const b of btns) b.disabled = true;
+  const btn = drive ? $('pfDrive') : $('pfStart'), label = btn.textContent; btn.textContent = 'Wird geladen …';
   try {
-    const { mountStrecke } = await import('./3d/strecke3d.js?v=1');
+    globalThis.SC_VENDOR = new URL('./3d/vendor/', import.meta.url).href; // Draco-Decoder für die 3D-Häuser von hier, nicht von einem CDN
+    const { mountStrecke } = await import('./3d/strecke3d.js?v=4');
     const host = document.createElement('div'); $('pfStage').replaceChildren(host);
-    F = await mountStrecke(host, { farbe: '#e0793c', kmh: 40, dauer: 70, modus: 'film' });
+    F = await mountStrecke(host, { farbe: '#e0793c', kmh: 40, dauer: 70, modus: 'film', fahren: true, autofarbe: 0x8e2a1c });
     window.__flug = F;
     apply3d();
-    setTimeout(() => F.play(), 400);
+    if (drive) { F.seek(0); await F.fahren(true); } else setTimeout(() => F.play(), 400);
   } catch (e) {
-    btn.disabled = false; btn.textContent = '▶ 3D-Fahrt starten';
-    btn.insertAdjacentHTML('afterend', '<p>Die 3D-Fahrt konnte nicht starten. Sie braucht einen aktuellen Browser mit WebGL.</p>');
+    for (const b of btns) b.disabled = false; btn.textContent = label;
+    btn.parentElement.insertAdjacentHTML('afterend', '<p>Die 3D-Fahrt konnte nicht starten. Sie braucht einen aktuellen Browser mit WebGL.</p>');
   }
-});
+}
+$('pfStart').addEventListener('click', () => start3d(false));
+$('pfDrive').addEventListener('click', () => start3d(true));
 
 choose('julier');
+
+/* Film auf ganzer Breite: spielt nur, solange er sichtbar ist; lädt erst beim Hinscrollen. Bei «weniger Bewegung» nur Standbild. */
+(() => {
+  const v = $('pfFilm'), btn = $('pfFilmToggle'); if (!v) return;
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let user = still ? 'pause' : null, seen = false;
+  const sync = () => { const play = seen && user !== 'pause'; if (play) v.play().catch(() => {}); else v.pause(); btn.textContent = user === 'pause' ? 'Abspielen' : 'Pause'; btn.setAttribute('aria-pressed', user === 'pause' ? 'true' : 'false'); };
+  new IntersectionObserver(es => { seen = es[0].isIntersecting; sync(); }, { threshold: 0.35 }).observe(v);
+  btn.addEventListener('click', () => { user = user === 'pause' ? null : 'pause'; sync(); });
+  sync();
+})();

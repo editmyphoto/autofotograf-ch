@@ -40,3 +40,27 @@
   .s3-bar { gap: 6px; } .s3-bar button, .s3-bar select { padding: 6px 9px; font-size: 12px; }
 }
 .s3 [hidden] { display: none !important; }
+
+/* Selbst fahren */
+.s3-drive { background: var(--s3-panel) !important; }
+.s3-drive-ui { position: absolute; inset: 0; pointer-events: none; }
+.s3-speedo { position: absolute; right: 14px; top: 12px; min-width: 96px; text-align: center; background: var(--s3-panel); backdrop-filter: blur(6px); border-radius: 12px; padding: 6px 12px; border-bottom: 3px solid var(--s3-accent); }
+.s3-speedo b { display: block; font-size: 34px; line-height: 1; font-variant-numeric: tabular-nums; }
+.s3-speedo span { font-size: 11px; opacity: .8; }
+.s3-warn { position: absolute; left: 50%; top: 22%; transform: translateX(-50%); background: #c8402f; color: #fff; font-weight: 700; padding: 6px 14px; border-radius: 99px; }
+.s3-pedals { position: absolute; left: 0; right: 0; bottom: 12px; display: flex; justify-content: space-between; align-items: flex-end; padding: 0 12px; pointer-events: none; }
+.s3-pedals button { pointer-events: auto; font: 600 13px/1 system-ui, sans-serif; color: #fff; border: 1px solid rgba(255,255,255,.35); background: var(--s3-panel); backdrop-filter: blur(6px); border-radius: 14px; padding: 16px 20px; touch-action: none; user-select: none; -webkit-user-select: none; cursor: pointer; }
+.s3-pedals .s3-gas { background: var(--s3-accent); color: #111; border: 0; padding: 22px 26px; }
+.s3-pedals .s3-brake { padding: 22px 22px; }
+.s3-pedals .s3-auto { align-self: center; border-radius: 99px; padding: 8px 14px; font-size: 12px; }
+.s3-pedals .s3-auto[aria-pressed="true"] { background: var(--s3-accent); color: #111; }
+.s3-keys { position: absolute; left: 50%; bottom: 74px; transform: translateX(-50%); margin: 0; font-size: 11px; opacity: .75; white-space: nowrap; text-shadow: 0 1px 4px rgba(0,0,0,.6); }
+.s3-drive-ui ~ .s3-halt, .s3-stage:has(.s3-drive-ui) .s3-halt, .s3-stage:has(.s3-drive-ui) .s3-sponsor { display: none; }
+@media (pointer: coarse) { .s3-keys { display: none; } }
+.s3:has(.s3-drive-ui) .s3-play, .s3:has(.s3-drive-ui) .s3-t { display: none; }
+.s3:has(.s3-drive-ui) .s3-bar { justify-content: flex-end; }
+@media (max-width: 640px) {
+  .s3-speedo { top: 8px; right: 8px; min-width: 64px; padding: 4px 8px; } .s3-speedo b { font-size: 22px; }
+  .s3-stage:has(.s3-drive-ui) .s3-stats { display: none; }
+  .s3-pedals { bottom: 8px; padding: 0 8px; } .s3-pedals button { padding: 12px 14px; } .s3-pedals .s3-gas { padding: 16px 20px; } .s3-pedals .s3-brake { padding: 16px 16px; }
+}
