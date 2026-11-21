@@ -80,7 +80,11 @@ void main() {
   float edge = smoothstep(0.06, 0.0, abs(ax - (W * 0.5 - 0.32)) - 0.06);
   float mid = step(ax, 0.07) * step(mod(d, 9.0), 3.0);
   c = mix(c, vec3(0.92), max(edge, mid) * 0.95);
-  float a = smoothstep(W * 0.5, W * 0.5 - 0.25, ax);                       // weicher Rand ins Gelände
+  // Bankett (Kies/Gras) ausserhalb der Fahrbahn, läuft weich ins Gelände aus
+  float sh0 = smoothstep(W * 0.5 - 0.05, W * 0.5 + 0.25, ax);
+  vec3 bank = mix(vec3(0.36, 0.35, 0.31), vec3(0.30, 0.34, 0.24), smoothstep(W * 0.5 + 0.4, W * 0.5 + 1.6, ax)) + (hash(floor(vec2(x * 3.0, d * 3.0))) - 0.5) * 0.05;
+  c = mix(c, bank, sh0);
+  float a = 1.0 - smoothstep(W * 0.5 + 1.8, W * 0.5 + 3.1, ax);
   vec3 L = directionalLights[0].direction; float dif = max(dot(normalize(vN), L), 0.0);
   float sh = 1.0;
   #if defined( USE_SHADOWMAP ) && NUM_DIR_LIGHT_SHADOWS > 0
@@ -112,12 +116,32 @@ export async function startFahren(ctx) {
   const N = line.length, L = (N - 1) * FINE, Hs = new Float32Array(N), Hok = new Uint8Array(N);
   const P = line.map(p => erde.toScene(p[0], p[1], p[2])), UP = line.map(p => erde.up(p[0], p[1]));
   // Höhe der Strasse: Gelände, wenn es nahe an der Streckenhöhe liegt (sonst Tunnel/Brücke: Streckenhöhe)
+  // Rohwert: das höchste Gelände quer über die Fahrbahn (Mitte und beide Ränder), damit kein Hang in die Strasse ragt.
+  const Hraw = new Float32Array(N), _g = {}, _e = new THREE.Vector3(), _sd = new THREE.Vector3(), _dd = new THREE.Vector3();
+  function groundAtOffset(i, off) { // Geländehöhe quer zur Strasse (off in m, + = rechts); null, wenn noch kein feines Gelände da ist
+    dirAt(i * FINE, _dd); _sd.crossVectors(_dd, UP[i]).normalize();
+    erde.toGeo(_e.copy(P[i]).addScaledVector(_sd, off), _g); const h = terrain.heightAt(_g.lat, _g.lon);
+    return h && h.z >= 15 ? h.h : null;
+  }
   function roadH(i) {
     const h = terrain.heightAt(line[i][0], line[i][1]);
-    if (h && h.z >= 15 && Math.abs(h.h - line[i][2]) < 6) { Hs[i] = h.h; Hok[i] = h.z; } else if (!Hok[i]) Hs[i] = line[i][2];
-    return Hs[i];
+    if (h && h.z >= 15 && Math.abs(h.h - line[i][2]) < 6) {
+      if (Hok[i] !== h.z) { const l = groundAtOffset(i, -ROAD_W / 2), r = groundAtOffset(i, ROAD_W / 2); Hraw[i] = Math.max(h.h, Math.min(h.h + 2.5, l ?? h.h), Math.min(h.h + 2.5, r ?? h.h)); Hok[i] = h.z; }
+    } else if (!Hok[i]) Hraw[i] = line[i][2];
+    return Hraw[i];
   }
-  for (let i = 0; i < N; i++) Hs[i] = line[i][2];
+  for (let i = 0; i < N; i++) { Hs[i] = line[i][2]; Hraw[i] = line[i][2]; }
+  /** Strasse glätten: keine Buckel und Löcher. Gleitendes Mittel über ±40 m (zweimal), dann so weit anheben,
+      dass die Strasse überall über dem Gelände liegt (Anhebung selbst wieder geglättet, höchstens 1,8 m). */
+  function smoothRoad(a, b) {
+    a = Math.max(0, a); b = Math.min(N - 1, b); const n = b - a + 1; if (n < 3) return;
+    const box = (src, r) => { const out = new Float32Array(n), pre = new Float64Array(n + 1); for (let k = 0; k < n; k++) pre[k + 1] = pre[k] + src[k]; for (let k = 0; k < n; k++) { const lo = Math.max(0, k - r), hi = Math.min(n - 1, k + r); out[k] = (pre[hi + 1] - pre[lo]) / (hi - lo + 1); } return out; };
+    const raw = Hraw.subarray(a, b + 1), sm = box(box(raw, 8), 8), lift = new Float32Array(n);
+    for (let k = 0; k < n; k++) { let m = 0; for (let q = Math.max(0, k - 5); q <= Math.min(n - 1, k + 5); q++) m = Math.max(m, raw[q] - sm[q]); lift[k] = Math.min(1.8, m); }
+    const ls = box(box(lift, 6), 6);
+    // am Fensterrand weich in die bisherigen Werte übergehen (sonst Stufe)
+    for (let k = 0; k < n; k++) { const w = Math.min(1, a > 0 ? k / 12 : 1, b < N - 1 ? (n - 1 - k) / 12 : 1), v = sm[k] + ls[k] + 0.08; Hs[a + k] = w >= 1 ? v : Hs[a + k] * (1 - w) + v * w; }
+  }
   const at = (s) => { const f = clamp(s / FINE, 0, N - 1.001), i = Math.floor(f); return [i, f - i]; };
   const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _u = new THREE.Vector3();
   /** Punkt auf der Strasse (Szene), seitlich versetzt (+ = rechts in Fahrtrichtung) */
@@ -142,23 +166,57 @@ export async function startFahren(ctx) {
   const roadMat = roadMaterial(); let road = null, roadFrom = -1, roadZ = 0;
   function buildRoad(s) {
     const i0 = Math.max(0, Math.floor((s - WIN * 0.4) / FINE)), i1 = Math.min(N - 1, Math.ceil((s + WIN) / FINE));
-    const n = i1 - i0 + 1, pos = new Float32Array(n * 2 * 3), uv = new Float32Array(n * 2 * 2), idx = [];
-    const v = new THREE.Vector3(), side = new THREE.Vector3(), d = new THREE.Vector3();
+    for (let i = Math.max(0, i0 - 30); i <= Math.min(N - 1, i1 + 30); i++) roadH(i);
+    smoothRoad(i0 - 30, i1 + 30);
+    // Querschnitt: Bankett – Fahrbahn – Bankett. Das Bankett fällt bis aufs Gelände ab (Damm), so schwebt die Strasse nirgends.
+    const SH = 3.2, UX = 1 + SH / (ROAD_W / 2), n = i1 - i0 + 1, pos = new Float32Array(n * 4 * 3), uv = new Float32Array(n * 4 * 2), nor = new Float32Array(n * 4 * 3), idx = [];
+    const v = new THREE.Vector3(), side = new THREE.Vector3(), d = new THREE.Vector3(), w = new THREE.Vector3();
     const C = P[i0].clone();
     for (let k = 0; k < n; k++) {
-      const i = i0 + k; roadH(i);
-      erde.toScene(line[i][0], line[i][1], Hs[i] + 0.18, v);
+      const i = i0 + k, h = Hs[i] + 0.12;
+      erde.toScene(line[i][0], line[i][1], h, v);
       dirAt(i * FINE, d); side.crossVectors(d, UP[i]).normalize();
-      for (let q = 0; q < 2; q++) {
-        const sg = q ? 1 : -1, w = v.clone().addScaledVector(side, sg * ROAD_W / 2).sub(C);
-        pos.set([w.x, w.y, w.z], (k * 2 + q) * 3); uv.set([sg, i * FINE], (k * 2 + q) * 2);
+      const cols = [[-ROAD_W / 2 - SH, -UX], [-ROAD_W / 2, -1], [ROAD_W / 2, 1], [ROAD_W / 2 + SH, UX]];
+      for (let q = 0; q < 4; q++) {
+        w.copy(v).addScaledVector(side, cols[q][0]);
+        if (q === 0 || q === 3) { const gh = Hok[i] ? groundAtOffset(i, cols[q][0]) : null; w.addScaledVector(UP[i], -(gh == null ? 0.6 : clamp(h - gh + 0.25, 0.3, 9))); }
+        w.sub(C); pos.set([w.x, w.y, w.z], (k * 4 + q) * 3); uv.set([cols[q][1], i * FINE], (k * 4 + q) * 2); nor.set([UP[i].x, UP[i].y, UP[i].z], (k * 4 + q) * 3);
       }
-      if (k < n - 1) { const a = k * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
+      if (k < n - 1) for (let q = 0; q < 3; q++) { const a = k * 4 + q; idx.push(a, a + 4, a + 1, a + 1, a + 4, a + 5); }
     }
-    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); g.setAttribute('normal', new THREE.BufferAttribute(nor, 3)); g.setIndex(idx);
     if (road) { scene.remove(road); road.geometry.dispose(); }
     road = new THREE.Mesh(g, roadMat); road.position.copy(C); road.receiveShadow = true; road.renderOrder = 2; road.frustumCulled = false; scene.add(road);
     roadFrom = s; roadZ = terrain.loadedCount;
+  }
+
+  /** Gebäude entfernen, deren Grundriss einen der Punkte pts (x, z, x, z, …) enthält. Punkte in einem 8-m-Raster,
+      damit jedes Dreieck nur wenige Punkte prüfen muss. Entfernt wird das ganze Gebäude (Gebäudenummer _batchid). */
+  function clearRoad(parts, pts) {
+    if (!pts.length) return parts;
+    const CELL = 8, grid = new Map(), key = (i, j) => i * 73856093 ^ j * 19349663;
+    for (let k = 0; k < pts.length; k += 2) { const kk = key(Math.floor(pts[k] / CELL), Math.floor(pts[k + 1] / CELL)); (grid.get(kk) || grid.set(kk, []).get(kk)).push(pts[k], pts[k + 1]); }
+    return parts.map(g => {
+      const Pa = g.attributes.position, B = g.attributes._batchid, a = Pa.array, ids = new Set(); let whole = false;
+      for (let i = 0; i + 8 < a.length && !whole; i += 9) {
+        const ax = a[i], az = a[i + 2], bx = a[i + 3], bz = a[i + 5], cx = a[i + 6], cz = a[i + 8];
+        if (Math.abs((bx - ax) * (cz - az) - (cx - ax) * (bz - az)) < 0.5) continue; // Wand (senkrecht): kein Grundriss
+        if (B && ids.has(Math.round(B.array[i / 3]))) continue;
+        const i0 = Math.floor(Math.min(ax, bx, cx) / CELL), i1 = Math.floor(Math.max(ax, bx, cx) / CELL), j0 = Math.floor(Math.min(az, bz, cz) / CELL), j1 = Math.floor(Math.max(az, bz, cz) / CELL);
+        if (i1 - i0 > 12 || j1 - j0 > 12) continue;
+        hit: for (let ii = i0; ii <= i1; ii++) for (let jj = j0; jj <= j1; jj++) { const c = grid.get(key(ii, jj)); if (!c) continue;
+          for (let q = 0; q < c.length; q += 2) { const x = c[q], z = c[q + 1];
+            const d1 = (x - bx) * (az - bz) - (ax - bx) * (z - bz), d2 = (x - cx) * (bz - cz) - (bx - cx) * (z - cz), d3 = (x - ax) * (cz - az) - (cx - ax) * (z - az);
+            if (!((d1 < 0 || d2 < 0 || d3 < 0) && (d1 > 0 || d2 > 0 || d3 > 0))) { if (B) ids.add(Math.round(B.array[i / 3])); else whole = true; break hit; } } }
+      }
+      if (whole) { const sz = (g.boundingBox || (g.computeBoundingBox(), g.boundingBox)).getSize(new THREE.Vector3()); return Math.max(sz.x, sz.z) < 60 ? null : g; }
+      if (!ids.size) return g;
+      const pos = [], bid = [];
+      for (let i = 0; i + 8 < a.length; i += 9) { const id = B.array[i / 3]; if (ids.has(Math.round(id))) continue; for (let k = 0; k < 9; k++) pos.push(a[i + k]); bid.push(id, id, id); }
+      if (!pos.length) return null;
+      const out = new THREE.BufferGeometry(); out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); out.setAttribute('_batchid', new THREE.Float32BufferAttribute(bid, 1));
+      Object.assign(out.userData, g.userData); out.userData.removed = ids.size; return out;
+    }).filter(Boolean);
   }
 
   /* Häuser und Bäume (swissBUILDINGS3D, Vegetation 3D) in Feldern um das Auto, nur nahe der Strasse */
@@ -186,8 +244,16 @@ export async function startFahren(ctx) {
       grp.matrix.copy(erde.basis(la, lo)).setPosition(erde.toScene(la, lo, 0));
       // Höhen direkt aus den swisstopo-Daten (Fusspunkt jedes Hauses und Baums), nicht aus dem Gelände:
       // das feine Gelände ist beim Laden oft noch nicht da, grobe Kacheln liegen in steilen Hängen bis 50 m daneben.
+      // Häuser, die in der Fahrbahn stehen oder näher als 1,5 m am Rand: herausnehmen (Strassenachse aus OSM und
+      // Gebäude von swisstopo passen in engen Dörfern nicht auf den Meter zusammen)
+      const strip = []; { const M = ROAD_W / 2 + 1.5;
+        for (let k = 0; k < N - 1; k++) { const x = (line[k][1] - lo) * mx, z = -(line[k][0] - la) * my; if (Math.abs(x) > half + 60 || Math.abs(z) > half + 60) continue;
+          const x2 = (line[k + 1][1] - lo) * mx, z2 = -(line[k + 1][0] - la) * my, dx = x2 - x, dz = z2 - z, len = Math.hypot(dx, dz) || 1, nx = -dz / len, nz = dx / len;
+          for (const t of [0, 0.5]) for (const o of [-M, -M / 2, 0, M / 2, M]) strip.push(x + dx * t + nx * o, z + dz * t + nz * o); } }
+      c.parts = clearRoad(c.parts, strip);
       if (c.parts.length) { const m = buildingMesh(c.parts, 0, false, gAt); if (m) { m.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; } }); grp.add(m); } }
-      const trees = (MOBILE ? c.trees.filter((_, k) => k % 2 === 0) : c.trees);
+      const tgrid = new Set(); for (let k = 0; k < strip.length; k += 2) tgrid.add(Math.round(strip[k] / 3) + ',' + Math.round(strip[k + 1] / 3));
+      const trees = (MOBILE ? c.trees.filter((_, k) => k % 2 === 0) : c.trees).filter(t => !tgrid.has(Math.round(t.x / 3) + ',' + Math.round(t.z / 3)));
       const base = new Map(trees.map(t => [t.x + ',' + t.z, t.y]));
       for (const m of treeMeshes(trees, (x, z) => (base.get(x + ',' + z) ?? gAt(x, z)) + 0.3)) { m.castShadow = true; m.receiveShadow = true; grp.add(m); }
       scene.add(grp); city.set(todo, grp);
@@ -356,7 +422,7 @@ export async function startFahren(ctx) {
     speedEl.textContent = Math.round(Fz.v * 3.6);
     // Strasse nachführen
     roadT -= dt;
-    if (roadFrom < 0 || Math.abs(Fz.s - roadFrom) > WIN * 0.35 || (roadT <= 0 && terrain.loadedCount !== roadZ)) { buildRoad(Fz.s); roadT = 1.5; }
+    if (roadFrom < 0 || Math.abs(Fz.s - roadFrom) > WIN * 0.35 || (roadT <= 0 && terrain.loadedCount !== roadZ)) { buildRoad(Fz.s); roadT = 2.5; }
     // Auto setzen (rechte Spur), Ausrichtung nach Fahrtrichtung und Steigung
     point(Fz.s, LANE, car.position); const sb = clamp(Fz.s - 2.2, 0, L - 4.4), ahead = point(sb + 4.4, LANE, _p), back = point(sb, LANE, _q);
     const [ci] = at(Fz.s); car.up.copy(UP[ci]); car.lookAt(_d.copy(car.position).add(back).sub(ahead)); // Modell schaut nach -z: Ziel hinter dem Auto, parallel zur Strasse
@@ -399,6 +465,16 @@ export async function startFahren(ctx) {
   };
   D.state = () => ({ s: Fz.s, v: Fz.v * 3.6, view: Fz.view, auto: Fz.auto, city: city.size, sun: D.sunVis, aussicht: Fz.aus, gipfel: peaks.length });
   D.anhalten = anhalten; D.weiter = weiter;
+  /** Prüfwerte (Tests): Strasse über Gelände, grösster Knick im Längsprofil, Masse des Autos */
+  D.probe = () => {
+    const [i] = at(Fz.s), a = Math.max(1, i - 100), b = Math.min(N - 2, i + 300); let minClear = 99, under = 0, maxKink = 0, n = 0;
+    for (let k = a; k <= b; k++) {
+      for (const o of [-ROAD_W / 2 + 0.3, 0, ROAD_W / 2 - 0.3]) { const g = groundAtOffset(k, o); if (g == null || Math.abs(g - line[k][2]) > 6) continue; const c = Hs[k] + 0.12 - g; n++; if (c < minClear) minClear = c; if (c < 0) under++; }
+      maxKink = Math.max(maxKink, Math.abs(Hs[k + 1] - 2 * Hs[k] + Hs[k - 1]));
+    }
+    const bb = new THREE.Box3().setFromObject(car), sz = bb.getSize(new THREE.Vector3());
+    return { proben: n, unterGelaende: under, kleinsterAbstand: +minClear.toFixed(2), groessterKnick_m: +maxKink.toFixed(3), auto: [car.children.length, +sz.length().toFixed(2)] };
+  };
   D.control = o => Object.assign(Fz, o);
   buildRoad(Fz.s);
   return D;
