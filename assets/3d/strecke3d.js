@@ -433,7 +433,7 @@ export async function mountStrecke(root, opts = {}) {
       if (!R) return;
       api.pause(); driveB.disabled = true; driveB.textContent = 'Lädt …';
       try {
-        const { startFahren } = await import('./fahren3d.js?v=23');
+        const { startFahren } = await import('./fahren3d.js?v=24');
         S.drive = await startFahren({ THREE, scene, camera, renderer, erde, get terrain() { return terrain; }, R, S, O, root, sunL, posAt, idxAt, hAt });
         for (const m of lineMeshes) m.visible = false; marker.visible = false;
         driveB.textContent = '✕ Beenden';

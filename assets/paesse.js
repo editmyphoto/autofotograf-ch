@@ -37,7 +37,7 @@ async function start3d(drive) {
   const btn = drive ? $('pfDrive') : $('pfStart'), label = btn.textContent; btn.textContent = 'Wird geladen …';
   try {
     globalThis.SC_VENDOR = new URL('./3d/vendor/', import.meta.url).href; // Draco-Decoder für die 3D-Häuser von hier, nicht von einem CDN
-    const { mountStrecke } = await import('./3d/strecke3d.js?v=20');
+    const { mountStrecke } = await import('./3d/strecke3d.js?v=21');
     const host = document.createElement('div'); $('pfStage').replaceChildren(host);
     F = await mountStrecke(host, { farbe: '#e0793c', kmh: 40, dauer: 70, modus: 'film', fahren: true, autofarbe: 0x8e2a1c });
     window.__flug = F;

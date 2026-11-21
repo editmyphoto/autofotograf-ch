@@ -3,7 +3,8 @@
    nahe Schatten per Shadow Map, Bergschatten über einen Strahl Richtung Sonne durchs Gelände.
    Wird von strecke3d.js erst geladen, wenn jemand «Selbst fahren» antippt. */
 import * as THREE from './three.module.js';
-import { loadCityWhere, buildingMesh, treeMeshes, setSeason, SEASON } from './tiles3d.js';
+import { mergeGeometries } from './addons/utils/BufferGeometryUtils.js';
+import { loadCityWhere, buildingMesh, setSeason, SEASON } from './tiles3d.js';
 
 const MOBILE = matchMedia('(pointer: coarse)').matches || innerWidth < 700;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v)), lerp = (a, b, t) => a + (b - a) * t;
@@ -53,6 +54,71 @@ function makeCar(color) {
   }
   g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   return g;
+}
+
+/* ---------- Bäume wie bei den Bahnfahrten: Tanne (Kegel in Etagen), Lärche (schlanker, im Herbst gold, im Winter kahl), Laubbaum (Kugel).
+   Unten gemischt, ab ca. 1300 m nur noch Nadelbäume. Eine Form je Art, als Instanzen. ---------- */
+const TREE_GEO = (() => {
+  const fin = (g, colFn) => { g = g.index ? g.toNonIndexed() : g; if (g.attributes.uv) g.deleteAttribute('uv'); const P = g.attributes.position, a = new Float32Array(P.count * 3); for (let i = 0; i < P.count; i++) a.set(colFn(P.getY(i)), i * 3); g.setAttribute('color', new THREE.BufferAttribute(a, 3)); g.computeVertexNormals(); return g; };
+  const trunk = (h, r) => fin(new THREE.CylinderGeometry(r * 0.7, r, h, 5, 1, true).translate(0, h / 2, 0), () => [0.42, 0.34, 0.27]);
+  const tier = (rb, yb, yt, seg, seed, droop = 0.03, jit = 0.16, lo = 0.6, hi = 1.12) => {
+    const g = new THREE.ConeGeometry(rb, yt - yb, seg, 1, true).translate(0, (yb + yt) / 2, 0), P = g.attributes.position;
+    for (let i = 0; i < P.count; i++) { const y = P.getY(i); if (y > yt - 1e-4) continue; const an = Math.atan2(P.getZ(i), P.getX(i)), k = 1 + jit * Math.sin(an * 3 + seed) * Math.cos(an * 2 - seed * 1.7); P.setXYZ(i, P.getX(i) * k, y - droop * (0.6 + 0.4 * Math.sin(an * 5 + seed)), P.getZ(i) * k); }
+    return fin(g, y => { const c = lo + (hi - lo) * Math.max(0, Math.min(1, (y - yb + droop) / (yt - yb + droop))); return [c, c, c]; });
+  };
+  const blob = (rx, ry, cy, seed) => { const g = new THREE.IcosahedronGeometry(1, 1), P = g.attributes.position, v = new THREE.Vector3();
+    for (let i = 0; i < P.count; i++) { v.set(P.getX(i), P.getY(i), P.getZ(i)).normalize(); const k = 1 + 0.12 * (Math.sin(v.x * 7 + seed) * Math.sin(v.z * 6 - seed) + 0.5 * Math.sin(v.y * 9 + seed * 2)); P.setXYZ(i, v.x * rx * k, cy + v.y * ry * k, v.z * rx * k); }
+    return fin(g, y => { const c = 0.62 + 0.5 * Math.max(0, Math.min(1, (y - (cy - ry)) / (2 * ry))); return [c, c, c]; }); };
+  return {
+    spruce: mergeGeometries([trunk(0.2, 0.022), tier(0.2, 0.17, 0.56, 7, 0.3), tier(0.15, 0.4, 0.8, 7, 1.9), tier(0.085, 0.64, 1.0, 6, 3.1, 0.02)]),
+    larch: mergeGeometries([trunk(0.24, 0.02), tier(0.15, 0.22, 0.62, 6, 0.8, 0.05, 0.26, 0.68, 1.15), tier(0.095, 0.5, 1.0, 5, 2.6, 0.03, 0.24, 0.7, 1.15)]),
+    broad: mergeGeometries([trunk(0.4, 0.026), blob(0.24, 0.34, 0.64, 1.3)]),
+  };
+})();
+let treeMat = null;
+function treeMaterial(SEASON) {
+  if (treeMat) return treeMat;
+  const m = new THREE.MeshLambertMaterial({ vertexColors: true });
+  m.onBeforeCompile = sh => {
+    sh.uniforms.sAut = SEASON.autumn; sh.uniforms.sBare = SEASON.bare; sh.uniforms.sLine = SEASON.snowLine;
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec2 tk; varying vec2 vTk; varying float vLy; varying float vWy; varying float vNy;')
+      .replace('#include <project_vertex>', '#include <project_vertex>\nvTk = tk; vLy = position.y; vNy = normal.y; vWy = ( modelMatrix * instanceMatrix * vec4( transformed, 1.0 ) ).y;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec2 vTk; varying float vLy; varying float vWy; varying float vNy; uniform float sAut; uniform float sBare; uniform float sLine;')
+      .replace('#include <color_fragment>', `#include <color_fragment>
+{ float crown = step( 0.165, vLy ), k = vTk.x, rr = vTk.y;
+  if ( k > 0.5 ) { // Lärche (1) und Laubbaum (2): Herbstfarben, im Winter kahl
+    vec3 aut = k < 1.5 ? mix( vec3( 0.80, 0.58, 0.13 ), vec3( 0.86, 0.66, 0.20 ), rr ) : mix( vec3( 0.85, 0.42, 0.10 ), vec3( 0.88, 0.70, 0.16 ), rr );
+    diffuseColor.rgb = mix( diffuseColor.rgb, aut * ( 0.55 + 0.45 * smoothstep( 0.3, 1.0, vLy ) ), sAut * crown );
+    diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.36, 0.31, 0.27 ), sBare * crown * 0.85 ); }
+  float sn = smoothstep( sLine - 120.0, sLine + 160.0, vWy ) * crown * smoothstep( 0.05, 0.6, vNy ) * ( k < 0.5 ? 0.75 : 0.45 ); // Schnee auf den Ästen
+  diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.93, 0.95, 0.98 ), clamp( sn, 0.0, 1.0 ) ); }`);
+  };
+  m.customProgramCacheKey = () => 'paesse-baum';
+  return treeMat = m;
+}
+/** trees: [{ x, y (Fusspunkt, m ü. M.), z, h }] im Feld-System → InstancedMeshes je Baumart */
+function makeTrees(trees, SEASON) {
+  const B = { spruce: [], larch: [], broad: [] };
+  trees.forEach((t, k) => {
+    const r = (k * 0.6180339 + Math.abs(t.x) * 0.013) % 1, alt = t.y;
+    const pConi = alt < 900 ? 0.35 : alt > 1300 ? 1 : 0.35 + 0.65 * (alt - 900) / 400;   // Anteil Nadelbäume nach Höhe
+    const coni = r < pConi, larch = coni && alt > 1400 && (r * 7.13) % 1 < 0.36;
+    B[!coni ? 'broad' : larch ? 'larch' : 'spruce'].push([t.x, t.y - 0.3, t.z, Math.max(3, Math.min(38, t.h)), r, !coni ? 2 : larch ? 1 : 0]);
+  });
+  const out = [], m = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), p = new THREE.Vector3(), col = new THREE.Color(), up = new THREE.Vector3(0, 1, 0);
+  for (const kind of ['spruce', 'larch', 'broad']) {
+    const list = B[kind]; if (!list.length) continue;
+    const src = TREE_GEO[kind], geo = new THREE.BufferGeometry(); for (const a of ['position', 'normal', 'color']) geo.setAttribute(a, src.attributes[a]);
+    geo.setAttribute('tk', new THREE.InstancedBufferAttribute(new Float32Array(list.flatMap(e => [e[5], e[4]])), 2));
+    const im = new THREE.InstancedMesh(geo, treeMaterial(SEASON), list.length);
+    list.forEach(([x, y, z, h, r, kk], i) => {
+      q.setFromAxisAngle(up, r * 6.283); if (kind === 'broad') h = Math.min(h, 18 + r * 6); const w = kind !== 'broad' ? h * (0.85 + r * 0.3) : h * (0.62 + r * 0.22);
+      im.setMatrixAt(i, m.compose(p.set(x, y, z), q, sc.set(w, h, w)));
+      im.setColorAt(i, kk === 1 ? col.setHSL(0.24 + r * 0.03, 0.34, 0.27 + r * 0.05) : kind === 'spruce' ? col.setHSL(0.29 + r * 0.04, 0.30, 0.17 + r * 0.06) : col.setHSL(0.22 + r * 0.05, 0.34, 0.27 + r * 0.07));
+    });
+    im.castShadow = im.receiveShadow = true; im.instanceMatrix.needsUpdate = true; im.instanceColor.needsUpdate = true; im.frustumCulled = false; out.push(im);
+  }
+  return out;
 }
 
 /* ---------- Strasse: Fläche mit Rand- und Mittellinien (Shader) ---------- */
@@ -290,8 +356,7 @@ export async function startFahren(ctx) {
       }
       const tgrid = new Set(); for (let k = 0; k < strip.length; k += 2) tgrid.add(Math.round(strip[k] / 3) + ',' + Math.round(strip[k + 1] / 3));
       const trees = (MOBILE ? c.trees.filter((_, k) => k % 2 === 0) : c.trees).filter(t => !tgrid.has(Math.round(t.x / 3) + ',' + Math.round(t.z / 3)));
-      const base = new Map(trees.map(t => [t.x + ',' + t.z, t.y]));
-      for (const m of treeMeshes(trees, (x, z) => (base.get(x + ',' + z) ?? gAt(x, z)) + 0.3)) { m.castShadow = true; m.receiveShadow = true; grp.add(m); }
+      for (const m of makeTrees(trees, SEASON)) grp.add(m); // Fusspunkt direkt aus den swisstopo-Daten (t.y)
       scene.add(grp); city.set(todo, grp);
       // alte Felder freigeben
       for (const [k2, g2] of city) { if (k2 === todo || k2 === key || k2 === kA || !g2) continue; const [y2, x2] = k2.split(',').map(Number); if (Math.hypot(y2 - ay, x2 - ax) > 2.5) { scene.remove(g2); g2.traverse(o => { o.geometry?.dispose(); }); city.delete(k2); } }
@@ -335,29 +400,31 @@ export async function startFahren(ctx) {
     <div class="s3-ausbar" hidden><button class="s3-fuss" aria-pressed="true">Zu Fuss</button><button class="s3-drohne" aria-pressed="false">Drohne</button><button class="s3-hoch" aria-label="Höher">▲</button><button class="s3-tief" aria-label="Tiefer">▼</button><span class="s3-hoehe"></span></div>
     <div class="s3-pedals"><div class="s3-side"><button class="s3-left" aria-label="Nach links lenken">◀</button><button class="s3-right" aria-label="Nach rechts lenken">▶</button></div>
       <div class="s3-mid"><button class="s3-halt-b">📷 Anhalten &amp; Aussicht</button><div class="s3-row"><button class="s3-auto" aria-pressed="false">Autopilot</button><button class="s3-man" aria-pressed="false">Selbst lenken</button><button class="s3-rev" aria-pressed="false">R</button></div></div>
-      <div class="s3-side"><button class="s3-brake" aria-label="Bremse">Bremse</button><button class="s3-gas" aria-label="Gas">Gas</button></div></div>
+      <div class="s3-side"><button class="s3-brake" aria-label="Bremse (im Aussichtsmodus: zurück)">▼</button><button class="s3-gas" aria-label="Gas (im Aussichtsmodus: vorwärts)">▲</button></div></div>
     <p class="s3-keys">↑ Gas · ↓ Bremse · ← → lenken · R Rückwärtsgang · L Lenkhilfe · P Autopilot · H Anhalten · V Ansicht</p>`;
   $('.s3-stage').appendChild(ui);
   const speedEl = ui.querySelector('.s3-speedo b'), gearEl = ui.querySelector('.s3-gear'), manB = ui.querySelector('.s3-man'), revB = ui.querySelector('.s3-rev'), warnEl = ui.querySelector('.s3-warn'), autoB = ui.querySelector('.s3-auto'), haltB = ui.querySelector('.s3-halt-b'), peaksEl = ui.querySelector('.s3-peaks'), hintEl = ui.querySelector('.s3-view-hint');
-  haltB.addEventListener('click', () => Fz.aus || Fz.halt ? weiter() : anhalten());
+  // Umschalter reagieren schon beim Antippen (pointerdown): Auf dem Handy kommt kein «click», solange ein anderer Finger Gas oder Lenkung hält.
+  const tap = (el, fn) => { el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); fn(); }); el.addEventListener('click', e => { if (e.detail === 0) fn(); }); };
+  tap(haltB, () => Fz.aus || Fz.halt ? weiter() : anhalten());
   const hold = (el, key) => { const on = e => { e.preventDefault(); Fz[key] = 1; if (key === 'gas' || key === 'brake') setAuto(false); if (key === 'gas' && Fz.halt) weiter(); }, off = () => { Fz[key] = 0; }; el.addEventListener('pointerdown', on); el.addEventListener('pointerup', off); el.addEventListener('pointerleave', off); el.addEventListener('pointercancel', off); };
   hold(ui.querySelector('.s3-gas'), 'gas'); hold(ui.querySelector('.s3-brake'), 'brake');
   // Lenken per Knopf (Handy): halten = einschlagen
   const steerBtn = (el, v) => { const on = e => { e.preventDefault(); Fz.steerIn = v; setAuto(false); }, off = () => { if (Fz.steerIn === v) Fz.steerIn = 0; }; el.addEventListener('pointerdown', on); for (const t of ['pointerup', 'pointerleave', 'pointercancel']) el.addEventListener(t, off); };
   steerBtn(ui.querySelector('.s3-left'), 1); steerBtn(ui.querySelector('.s3-right'), -1);
   const setManual = on => { Fz.manual = on; manB.setAttribute('aria-pressed', on ? 'true' : 'false'); if (!on) Fz.laneT = clamp(Fz.d, -LANE, LANE) < 0 ? -LANE : LANE; };
-  manB.addEventListener('click', () => setManual(!Fz.manual)); setManual(Fz.manual);
+  tap(manB, () => setManual(!Fz.manual)); setManual(Fz.manual);
   const setGear = g => { if (Math.abs(Fz.v) > 1.5) { say('Zum Schalten zuerst anhalten'); return; } Fz.gear = g; revB.setAttribute('aria-pressed', g < 0 ? 'true' : 'false'); gearEl.textContent = g < 0 ? 'R' : 'D'; setAuto(false); };
-  revB.addEventListener('click', () => setGear(-Fz.gear));
+  tap(revB, () => setGear(-Fz.gear));
   const say = (t, sec = 1.6) => { warnEl.textContent = t; Fz.msgT = sec; };
   // Aussicht: zu Fuss oder als Drohne, Höhe verstellbar
   const ausBar = ui.querySelector('.s3-ausbar'), fussB = ui.querySelector('.s3-fuss'), drohB = ui.querySelector('.s3-drohne'), hoeheEl = ui.querySelector('.s3-hoehe'), gasB = ui.querySelector('.s3-gas'), brakeB = ui.querySelector('.s3-brake');
   const setEye = h => { Fz.eyeT = clamp(h, 1.7, 300); const dr = Fz.eyeT > 3; fussB.setAttribute('aria-pressed', dr ? 'false' : 'true'); drohB.setAttribute('aria-pressed', dr ? 'true' : 'false'); };
-  fussB.addEventListener('click', () => setEye(1.7)); drohB.addEventListener('click', () => setEye(Math.max(40, Fz.eyeT)));
+  tap(fussB, () => setEye(1.7)); tap(drohB, () => setEye(Math.max(40, Fz.eyeT)));
   const holdV = (el, v) => { const on = e => { e.preventDefault(); Fz.lift = v; }, off = () => { if (Fz.lift === v) Fz.lift = 0; }; el.addEventListener('pointerdown', on); for (const t of ['pointerup', 'pointerleave', 'pointercancel']) el.addEventListener(t, off); };
   holdV(ui.querySelector('.s3-hoch'), 1); holdV(ui.querySelector('.s3-tief'), -1);
   const setAuto = on => { Fz.auto = on; autoB.setAttribute('aria-pressed', on ? 'true' : 'false'); };
-  autoB.addEventListener('click', () => setAuto(!Fz.auto));
+  tap(autoB, () => setAuto(!Fz.auto));
   const keys = e => {
     if (!root.isConnected || ['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
     const d = e.type === 'keydown';
@@ -402,7 +469,7 @@ export async function startFahren(ctx) {
   function anhalten() { setAuto(false); Fz.gas = 0; Fz.halt = true; haltB.textContent = 'Hält an …'; }
   function aussichtStart() {
     Fz.aus = true; haltB.textContent = '▶ Weiterfahren'; hintEl.hidden = false; setTimeout(() => { hintEl.hidden = true; }, 6000);
-    ausBar.hidden = false; gasB.textContent = 'Vor'; brakeB.textContent = 'Zurück'; setEye(1.7); Fz.eyeH = 1.7; walkP = null;
+    ausBar.hidden = false; setEye(1.7); Fz.eyeH = 1.7; walkP = null;
     // Blick zuerst auf die offene Seite (dorthin, wo das Gelände tiefer liegt)
     const p = point(Fz.s, 0, new THREE.Vector3()), d = dirAt(Fz.s, new THREE.Vector3()), [i] = at(Fz.s), r = new THREE.Vector3().crossVectors(d, UP[i]).normalize(), g = {};
     const hSide = sg => { let sum = 0; for (const m of [150, 400, 900]) { erde.toGeo(p.clone().addScaledVector(r, sg * m), g); sum += terrain.heightAt(g.lat, g.lon)?.h ?? 0; } return sum; };
@@ -411,7 +478,7 @@ export async function startFahren(ctx) {
     peaksT = 0.2; peaksRound = 0;
   }
   let walkP = null, walkFrom = null; const _wf = new THREE.Vector3(), _wr = new THREE.Vector3(), _wg = {};
-  function weiter() { ausBar.hidden = true; gasB.textContent = 'Gas'; brakeB.textContent = 'Bremse'; Fz.gas = 0; Fz.brake = 0; Fz.aus = false; Fz.halt = false; Fz.look = 0; Fz.pitch = 0; haltB.textContent = '📷 Anhalten & Aussicht'; hintEl.hidden = true; peaksEl.innerHTML = ''; peaks = []; camera.fov = 50; camera.updateProjectionMatrix(); }
+  function weiter() { ausBar.hidden = true; Fz.gas = 0; Fz.brake = 0; Fz.aus = false; Fz.halt = false; Fz.look = 0; Fz.pitch = 0; haltB.textContent = '📷 Anhalten & Aussicht'; hintEl.hidden = true; peaksEl.innerHTML = ''; peaks = []; camera.fov = 50; camera.updateProjectionMatrix(); }
 
   // Gipfelnamen (OpenStreetMap, wie in der Fotografen-Ansicht): nur Gipfel, die vom Standpunkt aus zu sehen sind
   const PEAKS = new URL('./peaks/', import.meta.url), peakTiles = new Map();
