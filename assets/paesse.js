@@ -3,7 +3,7 @@
 const $ = id => document.getElementById(id);
 const fmt = v => new Intl.NumberFormat('de-CH').format(v);
 const cache = {};
-const load = k => cache[k] ||= fetch(`assets/3d/strecken/${k}.json?v=4`).then(r => r.json());
+const load = k => cache[k] ||= fetch(`assets/3d/strecken/${k}.json?v=5`).then(r => r.json());
 
 let key = 'julier', F = null, data = null;
 // Voreinstellung: heute, jetzt (nachts 15:00, damit man etwas sieht)
@@ -37,7 +37,7 @@ async function start3d(drive) {
   const btn = drive ? $('pfDrive') : $('pfStart'), label = btn.textContent; btn.textContent = 'Wird geladen …';
   try {
     globalThis.SC_VENDOR = new URL('./3d/vendor/', import.meta.url).href; // Draco-Decoder für die 3D-Häuser von hier, nicht von einem CDN
-    const { mountStrecke } = await import('./3d/strecke3d.js?v=21');
+    const { mountStrecke } = await import('./3d/strecke3d.js?v=25');
     const host = document.createElement('div'); $('pfStage').replaceChildren(host);
     F = await mountStrecke(host, { farbe: '#e0793c', kmh: 40, dauer: 70, modus: 'film', fahren: true, autofarbe: 0x8e2a1c });
     window.__flug = F;

@@ -14,8 +14,18 @@ const D2R = Math.PI / 180;
 const jsonCache = new Map();
 let gltf = null;
 
-const getJSON = url => { if (!jsonCache.has(url)) jsonCache.set(url, fetch(url).then(r => r.ok ? r.json() : null).catch(() => null)); return jsonCache.get(url); };
-const getBin = url => fetch(url).then(r => r.ok ? r.arrayBuffer() : null).catch(() => null);
+/* Abfragen beim swisstopo-Server. Ist er kurz überlastet (Netzfehler, 429, 5xx), wird bis zu zweimal mit Pause nochmals gefragt.
+   403/404 heisst «diese Kachel gibt es nicht» und wird nicht wiederholt. Ein Fehlschlag wird nicht gemerkt: Die nächste Abfrage versucht es neu. */
+const pause = ms => new Promise(r => setTimeout(r, ms));
+async function fetchTry(url, read) {
+  for (let i = 0; i < 3; i++) {
+    try { const r = await fetch(url); if (r.ok) return await read(r); if (r.status !== 429 && r.status < 500) return null; } catch { /* nochmals */ }
+    if (i < 2) await pause(900 * (i + 1));
+  }
+  return null;
+}
+const getJSON = url => { if (!jsonCache.has(url)) { const p = fetchTry(url, r => r.json()); jsonCache.set(url, p); p.then(j => { if (j == null && jsonCache.get(url) === p) jsonCache.delete(url); }); } return jsonCache.get(url); };
+const getBin = url => fetchTry(url, r => r.arrayBuffer());
 
 /** Alle Inhalts-Kacheln, deren Region das Rechteck [w,s,e,n] (Radiant) schneidet (Verfeinerung ADD → alle Ebenen). */
 async function contentTiles(base, box) {
@@ -56,7 +66,8 @@ function gridTiles(base, g, box) {
 }
 let versionOk = null;
 async function gridVersionOk() {
-  versionOk ||= getJSON(BLD + 'tileset.json').then(j => (j?.root?.children?.[0]?.content?.uri || '').startsWith(GRID.bld.ver + '/')).catch(() => false);
+  // Kam die Antwort nicht an, gilt das nicht als «andere Version»: beim nächsten Mal wird neu gefragt (sonst lüde die Seite bis zum Neuladen keine Häuser)
+  if (!versionOk) { const p = getJSON(BLD + 'tileset.json').then(j => { if (j == null) { if (versionOk === p) versionOk = null; return false; } return (j?.root?.children?.[0]?.content?.uri || '').startsWith(GRID.bld.ver + '/'); }).catch(() => { if (versionOk === p) versionOk = null; return false; }); versionOk = p; }
   return versionOk;
 }
 

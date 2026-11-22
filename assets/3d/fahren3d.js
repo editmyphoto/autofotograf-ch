@@ -183,16 +183,28 @@ export async function startFahren(ctx) {
   const D = {}; // Rückgabe-Objekt (S.drive)
 
   /* Fahrlinie: Catmull-Rom über die 25-m-Punkte, alle 5 m (lat, lon, Höhe der Strecke) */
-  const src = R.pts, line = [];
-  for (let i = 0; i < src.length - 1; i++) {
-    const p0 = src[Math.max(0, i - 1)], p1 = src[i], p2 = src[i + 1], p3 = src[Math.min(src.length - 1, i + 2)];
-    const n = Math.round(R.data.step / FINE);
-    for (let k = 0; k < n; k++) {
-      const t = k / n, t2 = t * t, t3 = t2 * t, f = (a, b, c, d) => 0.5 * ((2 * b) + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3);
-      line.push([f(p0[0], p1[0], p2[0], p3[0]), f(p0[1], p1[1], p2[1], p3[1]), lerp(p1[2], p2[2], t)]);
+  const src = R.pts, line = [], KF = Math.round(R.data.step / FINE);
+  if (R.data.fein && R.data.fein.length > 2) {
+    // Genauer Strassenverlauf (alle OSM-Stützpunkte, Feld "fein"): alle 5 m entlang der echten Linie, Ecken leicht gerundet.
+    // Die 25-m-Punkte allein schneiden in engen Dorfkurven durch Häuser.
+    const Fp = R.data.fein, la0 = Fp[0][0], lo0 = Fp[0][1], my = 110574, mx = 111320 * Math.cos(la0 * Math.PI / 180);
+    const X = Fp.map(p => (p[1] - lo0) * mx), Y = Fp.map(p => (p[0] - la0) * my), cum = [0];
+    for (let i = 1; i < Fp.length; i++) cum.push(cum[i - 1] + Math.hypot(X[i] - X[i - 1], Y[i] - Y[i - 1]));
+    const Lf = cum[cum.length - 1], n = (src.length - 1) * KF + 1, px = new Float64Array(n), py = new Float64Array(n);
+    for (let k = 0, j = 0; k < n; k++) { const sArc = k / (n - 1) * Lf; while (j < cum.length - 2 && cum[j + 1] < sArc) j++; const t = (sArc - cum[j]) / Math.max(1e-6, cum[j + 1] - cum[j]); px[k] = X[j] + (X[j + 1] - X[j]) * t; py[k] = Y[j] + (Y[j + 1] - Y[j]) * t; }
+    for (let pass = 0; pass < 2; pass++) { let ax = px[0], ay = py[0]; for (let k = 1; k < n - 1; k++) { const nx = 0.25 * ax + 0.5 * px[k] + 0.25 * px[k + 1], ny = 0.25 * ay + 0.5 * py[k] + 0.25 * py[k + 1]; ax = px[k]; ay = py[k]; px[k] = nx; py[k] = ny; } }
+    for (let k = 0; k < n; k++) { const fi = k / KF, i = Math.min(src.length - 2, Math.floor(fi)), t = fi - i; line.push([la0 + py[k] / my, lo0 + px[k] / mx, lerp(src[i][2], src[i + 1][2], t)]); }
+  } else {
+    for (let i = 0; i < src.length - 1; i++) {
+      const p0 = src[Math.max(0, i - 1)], p1 = src[i], p2 = src[i + 1], p3 = src[Math.min(src.length - 1, i + 2)];
+      const n = Math.round(R.data.step / FINE);
+      for (let k = 0; k < n; k++) {
+        const t = k / n, t2 = t * t, t3 = t2 * t, f = (a, b, c, d) => 0.5 * ((2 * b) + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3);
+        line.push([f(p0[0], p1[0], p2[0], p3[0]), f(p0[1], p1[1], p2[1], p3[1]), lerp(p1[2], p2[2], t)]);
+      }
     }
+    line.push(src[src.length - 1]);
   }
-  line.push(src[src.length - 1]);
   const N = line.length, L = (N - 1) * FINE, Hs = new Float32Array(N), Hok = new Uint8Array(N);
   const P = line.map(p => erde.toScene(p[0], p[1], p[2])), UP = line.map(p => erde.up(p[0], p[1]));
   // Höhe der Strasse: Gelände, wenn es nahe an der Streckenhöhe liegt (sonst Tunnel/Brücke: Streckenhöhe)
@@ -284,12 +296,17 @@ export async function startFahren(ctx) {
 
   /** Gebäude entfernen, deren Grundriss einen der Punkte pts (x, z, x, z, …) enthält. Punkte in einem 8-m-Raster,
       damit jedes Dreieck nur wenige Punkte prüfen muss. Entfernt wird das ganze Gebäude (Gebäudenummer _batchid). */
-  function clearRoad(parts, pts) {
+  function clearRoad(parts, pts, axis, rad) {
     if (!pts.length) return parts;
+    // zusätzlich: jede Haus-Ecke näher als rad an der Strassenachse (axis: x, z, …) → Gebäude weg (fängt schmale Bauten und Vorsprünge, die zwischen den Prüfpunkten liegen)
+    const AC = 6, agrid = new Map(), akey = (i, j) => i * 73856093 ^ j * 19349663;
+    for (let k = 0; k < axis.length; k += 2) { const kk = akey(Math.floor(axis[k] / AC), Math.floor(axis[k + 1] / AC)); (agrid.get(kk) || agrid.set(kk, []).get(kk)).push(axis[k], axis[k + 1]); }
+    const nearAxis = (x, z) => { const ci = Math.floor(x / AC), cj = Math.floor(z / AC), r2 = rad * rad; for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) { const c = agrid.get(akey(ci + a, cj + b)); if (!c) continue; for (let q = 0; q < c.length; q += 2) { const dx = c[q] - x, dz = c[q + 1] - z; if (dx * dx + dz * dz < r2) return true; } } return false; };
     const CELL = 8, grid = new Map(), key = (i, j) => i * 73856093 ^ j * 19349663;
     for (let k = 0; k < pts.length; k += 2) { const kk = key(Math.floor(pts[k] / CELL), Math.floor(pts[k + 1] / CELL)); (grid.get(kk) || grid.set(kk, []).get(kk)).push(pts[k], pts[k + 1]); }
     return parts.map(g => {
       const Pa = g.attributes.position, B = g.attributes._batchid, a = Pa.array, ids = new Set(); let whole = false;
+      for (let i = 0; i + 2 < a.length; i += 3) { if (B && ids.has(Math.round(B.array[i / 3]))) continue; if (nearAxis(a[i], a[i + 2])) { if (B) ids.add(Math.round(B.array[i / 3])); else { whole = true; break; } } }
       for (let i = 0; i + 8 < a.length && !whole; i += 9) {
         const ax = a[i], az = a[i + 2], bx = a[i + 3], bz = a[i + 5], cx = a[i + 6], cz = a[i + 8];
         if (Math.abs((bx - ax) * (cz - az) - (cx - ax) * (bz - az)) < 0.5) continue; // Wand (senkrecht): kein Grundriss
@@ -338,11 +355,12 @@ export async function startFahren(ctx) {
       // das feine Gelände ist beim Laden oft noch nicht da, grobe Kacheln liegen in steilen Hängen bis 50 m daneben.
       // Häuser, die in der Fahrbahn stehen oder näher als 1,5 m am Rand: herausnehmen (Strassenachse aus OSM und
       // Gebäude von swisstopo passen in engen Dörfern nicht auf den Meter zusammen)
-      const strip = []; { const M = ROAD_W / 2 + 1.5;
+      const strip = [], axis = []; { const M = ROAD_W / 2 + 2.2;
         for (let k = 0; k < N - 1; k++) { const x = (line[k][1] - lo) * mx, z = -(line[k][0] - la) * my; if (Math.abs(x) > half + 60 || Math.abs(z) > half + 60) continue;
           const x2 = (line[k + 1][1] - lo) * mx, z2 = -(line[k + 1][0] - la) * my, dx = x2 - x, dz = z2 - z, len = Math.hypot(dx, dz) || 1, nx = -dz / len, nz = dx / len;
-          for (const t of [0, 0.5]) for (const o of [-M, -M / 2, 0, M / 2, M]) strip.push(x + dx * t + nx * o, z + dz * t + nz * o); } }
-      c.parts = clearRoad(c.parts, strip);
+          for (const t of [0, 0.5]) axis.push(x + dx * t, z + dz * t);
+          for (const t of [0, 0.5]) for (const o of [-M, -M * 0.66, -M * 0.33, 0, M * 0.33, M * 0.66, M]) strip.push(x + dx * t + nx * o, z + dz * t + nz * o); } }
+      const nVor = c.parts.length; c.parts = clearRoad(c.parts, strip, axis, ROAD_W / 2 + 0.8); D.dbgCity = { teile: nVor, danach: c.parts.length, entfernt: c.parts.reduce((a, g) => a + (g.userData.removed || 0), 0), punkte: strip.length / 2 };
       if (c.parts.length) {
         // Fensterraster wie auf der Makler-Seite (Engine: withFacade). Hausfuss nur aus feinem Gelände, sonst Unterkante des Hauses.
         const gFine = (x, z) => { const h = terrain.heightAt(la - z / my, lo + x / mx); return h && h.z >= 15 ? h.h : null; };
@@ -789,6 +807,14 @@ export async function startFahren(ctx) {
   /** Jahreszeit nach Datum (wie bei den Bahnfahrten): Herbstfarben und kahle Laubbäume, Schnee auf Dächern; Schnee am Strassenrand */
   D.season = iso => { setSeason(iso, 0); };
   D.season(O.datum);
+  /** Prüfwert (Tests): Wie viele Haus-Ecken liegen noch in der Fahrbahn (näher als die halbe Strassenbreite an der Achse)? */
+  D.probeHaus = (von = 0, bis = 1500) => {
+    const i0 = Math.max(0, Math.round(von / FINE)), i1 = Math.min(N - 1, Math.round(bis / FINE)), v = new THREE.Vector3(); let inRoad = 0, near = 0, tot = 0;
+    for (const g of city.values()) { if (!g) continue; g.updateMatrixWorld?.(); for (const m of g.children) { if (m.name !== 'buildings') continue; const P = m.geometry.attributes.position;
+      for (let k = 0; k < P.count; k += 2) { v.fromBufferAttribute(P, k).applyMatrix4(g.matrix); tot++; let best = 1e9; for (let i = i0; i <= i1; i += 2) { const d = v.distanceToSquared(P_road(i)); if (d < best) best = d; } best = Math.sqrt(best); if (best < ROAD_W / 2) inRoad++; else if (best < ROAD_W / 2 + 2.2) near++; } } }
+    return { ecken: tot, inFahrbahn: inRoad, amRand: near };
+  };
+  const _pr = new THREE.Vector3(), P_road = i => erde.toScene(line[i][0], line[i][1], Hs[i] + 1, _pr);
   /** Prüfwerte (Tests): Strasse über Gelände, grösster Knick im Längsprofil, Masse des Autos */
   D.probe = () => {
     const [i] = at(Fz.s), a = Math.max(1, i - 100), b = Math.min(N - 2, i + 300); let minClear = 99, under = 0, maxKink = 0, n = 0;
